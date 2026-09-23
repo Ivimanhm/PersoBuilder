@@ -1,15 +1,32 @@
 node_modules/
 dist/
 target/
-src/frontend/node_modules/
-src/frontend/dist/
-src/backend/target/
 src/backend/gen/
+# Logs y archivos locales de Vite/desarrollo
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.local
+# Bases de datos creadas durante la ejecución
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
 *.tsbuildinfo
 .edge-*/
 draftlab-*.png
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
+# Configuración local de Android y credenciales de firma
+**/local.properties
 package/scripts/android/signing.properties
-package/scripts/android/*.keystore
+*.keystore
+*.jks
+*.p12
+*.pfx
