@@ -1,0 +1,1 @@
+.role-icon { display: block; width: 24px; height: 24px; background: currentColor; -webkit-mask: var(--role-icon) center/contain no-repeat; mask: var(--role-icon) center/contain no-repeat; }

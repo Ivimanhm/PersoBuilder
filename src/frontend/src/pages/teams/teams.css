@@ -1,0 +1,15 @@
+.teams-page {
+  --team-table-height: 306px;
+}
+.teams-page > .empty-state {
+  min-height: var(--team-table-height);
+  border-color: rgba(175, 132, 42, 0.52);
+  color: #c6d0dc;
+  background: linear-gradient(
+    145deg,
+    rgba(13, 28, 38, 0.98),
+    rgba(4, 13, 20, 0.98)
+  );
+}
+
+/* Roulette: viewport-filling composition without page scroll. */

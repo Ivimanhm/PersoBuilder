@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.PersoBuilder" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowBackground">#02070B</item>
+        <item name="android:statusBarColor">#02070B</item>
+        <item name="android:navigationBarColor">#02070B</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

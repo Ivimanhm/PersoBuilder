@@ -1,0 +1,15 @@
+node_modules/
+dist/
+target/
+src/frontend/node_modules/
+src/frontend/dist/
+src/backend/target/
+src/backend/gen/
+*.db
+*.db-shm
+*.db-wal
+*.tsbuildinfo
+.edge-*/
+draftlab-*.png
+package/scripts/android/signing.properties
+package/scripts/android/*.keystore

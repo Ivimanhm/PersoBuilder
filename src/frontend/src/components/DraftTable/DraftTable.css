@@ -1,0 +1,4 @@
+.draft-team-board { margin-top: 0; }
+.draft-slot { min-height: 100%; padding: 5px; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
+.draft-slot.current { border-color: #eec750; background: rgba(192, 151, 45, 0.08); box-shadow: inset 0 0 0 1px rgba(238, 199, 80, 0.18); }
+.draft-slot:focus-visible { outline: 0; border-color: #eec750; }

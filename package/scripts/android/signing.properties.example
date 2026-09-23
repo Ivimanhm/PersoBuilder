@@ -1,0 +1,6 @@
+# Copia este archivo como signing.properties fuera del control de versiones.
+# El script sustituye storeFile por la ruta absoluta del certificado local.
+storeFile=perso-builder.keystore
+storePassword=
+keyAlias=perso-builder
+keyPassword=

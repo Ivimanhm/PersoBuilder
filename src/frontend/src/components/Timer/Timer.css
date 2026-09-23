@@ -1,0 +1,8 @@
+.draft-timer { --timer-progress: 360deg; width: 56px; height: 56px; flex: 0 0 56px; border-radius: 50%; display: grid; place-content: center; justify-items: center; background: radial-gradient(circle, #07141c 64%, transparent 66%), conic-gradient(#d6af43 0 var(--timer-progress), #314652 var(--timer-progress) 360deg); box-shadow: none; }
+.draft-timer.paused { background: radial-gradient(circle, #07141c 64%, transparent 66%), #314652; }
+.draft-timer.paused strong, .draft-timer.paused small { color: #91a2b2; }
+.draft-timer.expired { background: radial-gradient(circle, #07141c 64%, transparent 66%), #dc3545; animation: draft-timer-expired 0.8s ease-in-out infinite alternate; }
+.draft-timer.expired strong, .draft-timer.expired small { color: #fff; }
+.draft-timer strong { font-size: 19px; line-height: 1; }
+.draft-timer small { margin-top: 2px; color: white; font-size: 8px; }
+@keyframes draft-timer-expired { from { opacity: 1; box-shadow: 0 0 4px rgba(220, 53, 69, 0.35); } to { opacity: 0.72; box-shadow: 0 0 14px rgba(220, 53, 69, 0.7); } }

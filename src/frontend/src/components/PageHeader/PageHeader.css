@@ -1,0 +1,21 @@
+.back-button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #253845;
+  border-radius: 8px;
+  color: var(--gold);
+  background: #0d1c25;
+  cursor: pointer;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+
+.back-button:active { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(220, 179, 75, 0.2), 0 0 10px rgba(220, 179, 75, 0.18); transform: scale(0.94); }
+.back-button:focus { outline: 0; }
+.back-button:focus-visible { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(220, 179, 75, 0.2); }
+.back-button .ui-icon { font-size: 17px; }
+.page-title > .ui-icon { color: var(--gold); margin: 0; }
+.page-title > div { min-width: 0; }
+.page-title h1 { margin: 0; font-size: 28px; line-height: 1; }
+.page-title p { margin: 6px 0 0; color: #abb8c9; font-size: 13px; }

@@ -1,0 +1,15 @@
+{
+  "version": "16.18.1",
+  "locale": "es_ES",
+  "generatedAt": "2026-09-14T19:25:26.383Z",
+  "championCount": 173,
+  "omittedWithoutPositionData": 0,
+  "roleRule": "Posición principal y alternativas con al menos el 18% de la presencia de la principal y tasa absoluta >= 0.00015; máximo tres posiciones.",
+  "sources": [
+    "https://ddragon.leagueoflegends.com/api/versions.json",
+    "https://ddragon.leagueoflegends.com/cdn/16.18.1/data/es_ES/champion.json",
+    "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-champion-statistics/global/default/rcp-fe-lol-champion-statistics.js",
+    "https://raw.communitydragon.org/latest/content-metadata.json"
+  ],
+  "communityDragonVersion": "16.18.8175716+branch.releases-16-18.content.release"
+}

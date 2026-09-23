@@ -1,0 +1,51 @@
+name: Quality checks
+
+on:
+  push:
+    paths:
+      - "src/backend/**"
+      - "src/frontend/**"
+      - "package/scripts/update-champions.mjs"
+      - "package/scripts/verify-datasets.mjs"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "src/backend/**"
+      - "src/frontend/**"
+      - "package/scripts/update-champions.mjs"
+      - "package/scripts/verify-datasets.mjs"
+      - ".github/workflows/backend.yml"
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm audit --omit=dev
+
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit

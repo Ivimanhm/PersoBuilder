@@ -1,0 +1,345 @@
+.roulette-page {
+  height: auto;
+  overflow: visible;
+}
+.roulette-page .role-step {
+  align-self: stretch;
+}
+.roulette-page .role-options button.selected {
+  border-color: var(--gold);
+  color: #efd67a;
+}
+.roulette-page .marker.top {
+  border-top-color: var(--gold);
+}
+.roulette-page .marker.bottom {
+  border-bottom-color: var(--gold);
+}
+.roulette-page .role-options button {
+  height: auto;
+  aspect-ratio: 1;
+}
+.roulette-page .wheel-step {
+  height: 200px;
+  min-height: 200px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.roulette-page .roulette-viewport {
+  height: auto;
+  min-height: 0;
+}
+.roulette-page .wheel-step > header {
+  height: 44px;
+}
+.roulette-page .roulette-track {
+  padding-block: 5px;
+}
+.roulette-page .roulette-card {
+  width: 69px;
+  height: 122px;
+  flex-basis: 69px;
+  padding: 1px 3px 3px;
+  grid-template-rows: 1fr 22px;
+}
+.roulette-page .roulette-card > div {
+  border-radius: 6px 6px 4px 4px;
+}
+.roulette-page .roulette-card img {
+  object-fit: cover;
+  transform: scale(1.06);
+}
+.roulette-page .roulette-card strong {
+  font-size: 9px;
+}
+.roulette-page .roulette-card.selected {
+  position: relative;
+  z-index: 2;
+  border: 2px solid var(--gold);
+  background: #13212a;
+  box-shadow:
+    0 0 10px rgba(226, 178, 58, 0.38),
+    inset 0 0 8px rgba(245, 205, 84, 0.1);
+}
+.roulette-page .roulette-card.selected::before {
+  display: none;
+}
+.roulette-page .spin-button {
+  min-height: 48px;
+  flex: 0 0 48px;
+}
+.roulette-page .roulette-result {
+  min-height: 128px;
+  flex: 0 0 128px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgba(175, 132, 42, 0.52);
+  background: linear-gradient(
+    145deg,
+    rgba(13, 28, 38, 0.98),
+    rgba(4, 13, 20, 0.98)
+  );
+}
+.roulette-page .roulette-result::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 7px;
+  border: 1px solid rgba(202, 157, 52, 0.14);
+  border-radius: 9px;
+  pointer-events: none;
+}
+.roulette-empty-result {
+  width: min(100%, 520px);
+  height: 100%;
+  min-height: 94px;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  background: transparent;
+}
+.roulette-empty-result::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  opacity: 0.64;
+  background: url("/ornaments/roulette-laurels-v3.png") center/contain no-repeat;
+  pointer-events: none;
+}
+.roulette-empty-copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+}
+.roulette-empty-copy p {
+  margin: 0;
+  color: #c5d0dc;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.roulette-page .roulette-result:not(.has-winner)::before {
+  display: none;
+}
+.roulette-page .roulette-result.has-winner::before {
+  display: none;
+}
+.roulette-empty-copy small {
+  color: #a98539;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+}
+.roulette-empty-copy p {
+  flex: none;
+  color: #c6d0dc;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.roulette-empty-gem {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 2px;
+  display: grid;
+  place-items: center;
+  color: #f4cf62;
+  border: 1px solid rgba(231, 185, 70, 0.68);
+  background: linear-gradient(
+    145deg,
+    rgba(226, 177, 52, 0.2),
+    rgba(81, 59, 17, 0.08)
+  );
+  box-shadow:
+    0 0 18px rgba(222, 170, 45, 0.13),
+    inset 0 0 0 4px rgba(5, 16, 24, 0.7);
+  transform: rotate(45deg);
+}
+.roulette-empty-gem i {
+  font-size: 15px;
+  transform: rotate(-45deg);
+}
+.laurel-branch {
+  width: 100%;
+  height: min(100%, 108px);
+  min-height: 76px;
+  overflow: visible;
+  filter: drop-shadow(0 0 8px rgba(196, 145, 35, 0.12));
+}
+.laurel-branch.mirrored {
+  transform: scaleX(-1);
+}
+.laurel-stem,
+.laurel-glow {
+  fill: none;
+  stroke-linecap: round;
+}
+.laurel-glow {
+  stroke: rgba(239, 193, 79, 0.13);
+  stroke-width: 5;
+}
+.laurel-stem {
+  stroke: #9c752a;
+  stroke-width: 1.6;
+}
+.laurel-leaves {
+  fill: #9d772e;
+}
+.laurel-leaves path:nth-child(2n) {
+  fill: #ba913b;
+}
+.laurel-buds {
+  fill: #efc85c;
+  stroke: #6f511c;
+  stroke-width: 1;
+}
+.roulette-result.has-winner {
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 12px 16px;
+  border-style: solid;
+  border-color: #2a414e;
+  background:
+    radial-gradient(
+      circle at 12% 50%,
+      rgba(228, 177, 51, 0.15),
+      transparent 26%
+    ),
+    linear-gradient(145deg, rgba(13, 28, 38, 0.98), rgba(4, 13, 20, 0.98));
+}
+.roulette-winner-portrait {
+  width: 70px;
+  height: 70px;
+  flex: 0 0 70px;
+  padding: 1px;
+  border: 1px solid #38515d;
+  border-radius: 9px;
+  background: #0a1821;
+  box-shadow: none;
+}
+.roulette-winner-portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 6px;
+  object-fit: cover;
+}
+.roulette-winner-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  align-content: center;
+}
+.roulette-winner-copy h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.05;
+}
+.roulette-winner-copy p {
+  font-size: 12px;
+}
+
+@media (min-width: 800px) {
+  .teams-page {
+    --team-table-height: 341px;
+  }
+  .roulette-page {
+    gap: 12px;
+  }
+  .roulette-page .wheel-step {
+    height: 238px;
+    min-height: 238px;
+  }
+  .roulette-page .role-step,
+  .roulette-page .wheel-step,
+  .roulette-page .spin-button,
+  .roulette-page .roulette-result {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+  .roulette-empty-result {
+    width: min(100%, 620px);
+  }
+  .roulette-empty-copy p {
+    font-size: 14px;
+  }
+  .roulette-page .roulette-card {
+    width: 100px;
+    height: 156px;
+    flex-basis: 100px;
+    padding: 1px 3px 3px;
+  }
+}
+
+@media (max-height: 760px) {
+  .roulette-page {
+    gap: 9px;
+    padding: 16px 16px 12px;
+  }
+  .roulette-page .page-title {
+    min-height: 40px;
+  }
+  .roulette-page .page-title p {
+    display: none;
+  }
+  .roulette-page .role-step {
+    padding-block: 8px;
+  }
+  .roulette-page .role-options {
+    margin-top: 6px;
+  }
+  .roulette-page .role-options button {
+    height: auto;
+    aspect-ratio: 1;
+  }
+  .roulette-page .wheel-step {
+    height: 188px;
+    min-height: 188px;
+  }
+  .roulette-page .wheel-step > header {
+    height: 40px;
+  }
+  .roulette-page .roulette-card {
+    width: 66px;
+    height: 116px;
+    flex-basis: 66px;
+    padding: 1px 3px 3px;
+    grid-template-rows: 1fr 21px;
+  }
+  .roulette-page .spin-button {
+    min-height: 44px;
+  }
+  .roulette-page .roulette-result {
+    min-height: 100px;
+    flex-basis: 100px;
+    padding: 10px 12px;
+  }
+  .roulette-page .roulette-result.has-winner {
+    padding: 10px 12px;
+  }
+  .roulette-empty-result {
+    min-height: 70px;
+  }
+  .roulette-empty-gem {
+    width: 28px;
+    height: 28px;
+  }
+  .roulette-empty-copy small {
+    display: none;
+  }
+  .laurel-branch {
+    min-height: 62px;
+  }
+}
+
+@media (max-width: 460px) {
+  .roulette-page {
+    height: auto;
+  }
+}
+
+/* Mantener el mismo radio tambiÃƒÂ©n despuÃƒÂ©s de los ajustes responsivos. */

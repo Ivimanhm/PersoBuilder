@@ -1,0 +1,17 @@
+.gold-button {
+  min-height: 52px;
+  border: 1px solid #efd070;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  color: #17130a;
+  font-weight: 800;
+  cursor: pointer;
+  background: linear-gradient(180deg, #e7c256, #d5a337);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.58), 0 10px 28px rgba(180, 120, 18, 0.14);
+}
+
+.gold-button:hover:not(:disabled) { filter: brightness(1.07); }
+.gold-button:disabled { opacity: 0.55; cursor: wait; }

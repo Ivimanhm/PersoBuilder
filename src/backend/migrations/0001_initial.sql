@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS app_metadata (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS champions (
+    id INTEGER PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL UNIQUE,
+    roles TEXT NOT NULL,
+    image TEXT NOT NULL DEFAULT ''
+);
