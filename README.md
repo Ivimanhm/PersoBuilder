@@ -87,7 +87,34 @@ cd .\src\backend
 cargo tauri build
 ```
 
-Los instaladores y formatos producidos dependen de la plataforma y configuración Tauri local. El nombre visible `PersoBuilder` y el identificador `com.persobuilder.app` se definen en `src/backend/tauri.conf.json`.
+Los instaladores y formatos producidos dependen de la plataforma y configuración Tauri local. El nombre visible `Perso-Builder` y el identificador `com.persobuilder.app` se definen en `src/backend/tauri.conf.json`.
+
+## Windows
+
+Los scripts de Windows se ejecutan desde PowerShell; puedes lanzarlos desde la raíz del repositorio o desde otra carpeta.
+
+Para abrir la app con Vite y Tauri en modo desarrollo:
+
+```powershell
+.\package\scripts\windows\windows-dev.ps1
+```
+
+Para compilar el ejecutable de la app y los instaladores MSI y NSIS:
+
+```powershell
+.\package\scripts\windows\windows-release.ps1
+```
+
+La configuración común `tauri.conf.json` fija el producto y el binario como `Perso-Builder` para Windows y Android; `Cargo.toml` declara ese nombre para el target ejecutable. El script de release comprueba que las versiones de Tauri y Cargo coinciden y deja estas salidas:
+
+- Desarrollo: `src/backend/target/debug/Perso-Builder.exe`
+- Build: `src/backend/target/release/Perso-Builder.exe` (ejecutable de la app, no instalador)
+- Instalador MSI: `src/backend/target/release/bundle/msi/Perso-Builder-1.0.0.msi`
+- Instalador NSIS: `src/backend/target/release/bundle/nsis/Perso-Builder-1.0.0-setup.exe`
+
+Los dos nombres de instalador usan la versión declarada en Tauri y Cargo. El script estandariza automáticamente los nombres que genera Tauri, incluyendo la arquitectura en el nombre original.
+
+Se compila para la arquitectura Windows del equipo. El `.exe` directo ejecuta la app, pero no es un instalador y requiere que WebView2 Runtime esté disponible en Windows. Los archivos `.msi` y `-setup.exe` sí instalan la app. Los instaladores generados por este script no tienen firma Authenticode; firmarlos para distribución requiere un certificado de firma de código. Para compilar, instala los [prerrequisitos de Tauri para Windows](https://v2.tauri.app/start/prerequisites/). Si falla solo la generación MSI con un error `light.exe`, comprueba que la característica opcional VBScript de Windows esté habilitada; Tauri la necesita para empaquetar MSI.
 
 ## Android en Windows
 
@@ -149,7 +176,7 @@ npm.cmd test
 | `src/backend/src` | Comandos Tauri, modelos, persistencia SQLite y lógica Rust. |
 | `src/backend/resources` | Catálogo y metadatos importados en la app nativa. |
 | `src/backend/migrations` | Migraciones versionadas de SQLite. |
-| `package/scripts` | Actualización del catálogo y automatización Android. |
+| `package/scripts` | Actualización del catálogo y automatización Android/Windows. |
 | `docs` | Guías de usuario, arquitectura e índice documental. |
 
 Consulta [el índice de documentación](docs/README.md) para las guías específicas y la política de mantenimiento documental.
