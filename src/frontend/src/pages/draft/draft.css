@@ -692,18 +692,23 @@
   position: fixed;
   z-index: 100;
   inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  margin: 0;
   padding: 20px;
   display: grid;
   place-items: center;
-  background: rgba(2, 10, 15, 0.74);
-  backdrop-filter: blur(5px);
+  background: transparent;
+  backdrop-filter: none;
   border: 0;
+  outline: 0;
   max-width: none;
   max-height: none;
 }
 .draft-completion-modal::backdrop {
   background: rgba(2, 10, 15, 0.74);
   backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 .draft-completion-dialog {
   width: min(100%, 390px);
@@ -713,6 +718,7 @@
   border: 1px solid #405765;
   border-radius: 8px;
   text-align: center;
+  color: #e8edf3;
   background: linear-gradient(145deg, #10212b, #07131b);
   box-shadow: 0 18px 52px rgba(0, 0, 0, 0.48);
 }

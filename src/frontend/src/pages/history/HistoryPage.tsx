@@ -53,6 +53,13 @@ function remoteIdentity(record: HistoryRecord) {
     : "";
 }
 
+function requiresAdminToken(record: HistoryRecord) {
+  return record.kind === "fearless" && (
+    record.source === "online" ||
+    (record.connectionMode === "online" && record.syncStatus === "synced")
+  );
+}
+
 function combineWithoutDuplicates(
   localRecords: HistoryRecord[],
   onlineRecords: HistoryRecord[],
@@ -198,14 +205,15 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
 
   const setWinner = async (side: "blue" | "red") => {
     if (!winnerRecord || mutating) return;
-    if (winnerRecord.kind === "fearless" && !adminValid) return;
+    const remoteRecord = requiresAdminToken(winnerRecord);
+    if (remoteRecord && !adminValid) return;
     setMutating(true);
     try {
-      if (winnerRecord.kind === "fearless" && !await validateFearlessAdminToken()) {
+      if (remoteRecord && !await validateFearlessAdminToken()) {
         setAdminValid(false);
         throw new Error("El Admin Token ya no es válido.");
       }
-      if (winnerRecord.kind === "fearless" && (winnerRecord.source === "online" || winnerRecord.syncStatus === "synced")) {
+      if (remoteRecord) {
         await updateFearlessGameWinner(winnerRecord.seriesId ?? defaultFearlessSeriesId, winnerRecord.remoteGameNumber ?? winnerRecord.gameNumber!, side);
         setOnlineReload((value) => value + 1);
         const identity = remoteIdentity(winnerRecord);
@@ -264,13 +272,13 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
       const targets = [...localRecords.map((record) => ({ ...record, source: "local" as const })), ...onlineRecords]
         .filter((record) => ids.has(record.id));
       for (const record of targets) {
-        if (record.kind !== "fearless") continue;
+        if (!requiresAdminToken(record)) continue;
         if (!adminValid) throw new Error("Necesitas un Admin Token válido para borrar partidas Fearless.");
         if (!await validateFearlessAdminToken()) {
           setAdminValid(false);
           throw new Error("El Admin Token ya no es válido.");
         }
-        if (record.source === "online" || record.syncStatus === "synced") {
+        if (requiresAdminToken(record)) {
           await deleteFearlessGame(record.seriesId ?? defaultFearlessSeriesId, record.remoteGameNumber ?? record.gameNumber!);
           const identity = remoteIdentity(record);
           for (const local of localRecords) {
@@ -355,7 +363,7 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
             <header><span className={`history-kind ${record.kind}${fearless ? ` ${fearlessMode}` : ""}`} title={fearless ? `Modo ${fearlessMode === "online" ? "Online" : "Local"}` : undefined}><UiIcon name={fearless ? (fearlessMode === "online" ? "cloud" : "database") : "shuffle"} /></span><div><h2>{fearless ? "Draft Fearless" : "Equipos aleatorios"}</h2><p>{formatDate(record.createdAt)}</p></div><small>{fearless ? `Partida ${record.gameNumber ?? "-"}` : `${record.redTeam.length ? 2 : 1} equipo${record.redTeam.length ? "s" : ""}`}</small></header>
             <div className="history-matchup"><HistoryRoster side="blue" champions={blue} /><span className="history-vs">VS</span><HistoryRoster side="red" champions={red} /></div>
             {record.winner && <div className={`history-winner ${record.winner}`}><i className="bi bi-trophy-fill" />Ganador: Equipo {record.winner === "blue" ? "Azul" : "Rojo"}</div>}
-            {!selectionMode && <div className="history-actions"><button type="button" aria-label="Opciones" aria-expanded={openMenuId === record.id} onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}><i className="bi bi-three-dots-vertical" /></button>{openMenuId === record.id && <div className="history-menu">{(record.kind !== "fearless" || adminValid) ? <><button type="button" onClick={() => { setWinnerRecord(record); setOpenMenuId(null); }}><i className="bi bi-trophy" />{record.winner ? "Modificar ganador" : "Seleccionar ganador"}</button><button className="danger" type="button" onClick={() => { setDeleteRecordIds([record.id]); setOpenMenuId(null); }}><i className="bi bi-trash3" />Eliminar partida</button></> : <span className="history-admin-hint">Requiere un Admin Token válido</span>}</div>}</div>}
+            {!selectionMode && <div className="history-actions"><button type="button" aria-label="Opciones" aria-expanded={openMenuId === record.id} onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}><i className="bi bi-three-dots-vertical" /></button>{openMenuId === record.id && <div className="history-menu">{(!requiresAdminToken(record) || adminValid) ? <><button type="button" onClick={() => { setWinnerRecord(record); setOpenMenuId(null); }}><i className="bi bi-trophy" />{record.winner ? "Modificar ganador" : "Seleccionar ganador"}</button><button className="danger" type="button" onClick={() => { setDeleteRecordIds([record.id]); setOpenMenuId(null); }}><i className="bi bi-trash3" />Eliminar partida</button></> : <span className="history-admin-hint">Requiere un Admin Token válido</span>}</div>}</div>}
           </article>;
         })}
         {!results.length && <div className="history-empty">No hay partidas que coincidan con la búsqueda</div>}
