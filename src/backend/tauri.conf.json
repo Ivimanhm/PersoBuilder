@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "PersoBuilder",
-  "version": "1.0.0",
+  "productName": "Perso-Builder",
+  "mainBinaryName": "Perso-Builder",
+  "version": "1.0.1",
   "identifier": "com.persobuilder.app",
   "build": {
     "beforeDevCommand": "npm.cmd run dev --prefix ./frontend",
@@ -12,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "PersoBuilder",
+        "title": "Perso-Builder",
         "width": 1440,
         "height": 900,
         "minWidth": 360,

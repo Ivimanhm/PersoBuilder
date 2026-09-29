@@ -4,7 +4,7 @@ type TextFieldProps = {
   value: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
-  type?: "text" | "url" | "search";
+  type?: "text" | "url" | "search" | "password";
   id?: string;
   containerClassName?: string;
   prefix?: ComponentChildren;

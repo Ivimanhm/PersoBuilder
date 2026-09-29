@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getApiRequestUrl } from "./appSettings";
+import { getAdminToken } from "./adminToken";
 import {
   getPendingFearlessSyncRecords,
   saveLocalHistoryRecord,
@@ -21,6 +22,7 @@ type SeriesGameResponse = {
   blueTeam?: unknown;
   redTeam?: unknown;
   createdAt?: unknown;
+  winner?: unknown;
 };
 
 export type FearlessSeriesGame = {
@@ -29,6 +31,7 @@ export type FearlessSeriesGame = {
   blueTeam: number[];
   redTeam: number[];
   createdAt: string;
+  winner?: "blue" | "red";
 };
 type ApiResponse = {
   success?: boolean;
@@ -133,7 +136,7 @@ function parseBody(body: string): unknown {
 }
 
 function formatApiDiagnostic(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
   path: string,
   result: ApiResult,
   body?: unknown,
@@ -160,9 +163,10 @@ function describeApiError(payload: ApiResponse | null, fallback: string) {
 }
 
 async function apiRequest(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
+  authToken?: string,
 ): Promise<ApiResult> {
   if ("__TAURI_INTERNALS__" in window) {
     let native: NativeApiResult;
@@ -172,6 +176,7 @@ async function apiRequest(
         method,
         path,
         body: body ?? null,
+        authToken: authToken ?? null,
       });
     } catch (error) {
       const message = `No se pudo ejecutar la peticion nativa: ${String(error)}`;
@@ -210,9 +215,10 @@ async function apiRequest(
       method,
       headers: {
         Accept: "application/json",
-        ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       },
-      body: method === "POST" ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -335,7 +341,7 @@ async function loadFearlessSeriesGames(
   const path = `/api/series/${encodeURIComponent(seriesId)}`;
   const result = await apiRequest("GET", path);
   const payload = result.payload as (SeriesResponse & ApiResponse) | null;
-  if (result.status === 404 && payload?.error === "SERIES_NOT_FOUND") {
+  if (result.status === 404 && payload?.error?.toLowerCase() === "series_not_found") {
     ensuredSeries.delete(seriesCacheKey(seriesId));
     return [];
   }
@@ -371,6 +377,7 @@ async function loadFearlessSeriesGames(
       blueTeam,
       redTeam,
       createdAt: typeof game.createdAt === "string" ? game.createdAt : fallbackDate,
+      winner: game.winner === "blue" || game.winner === "red" ? game.winner : undefined,
     }];
   });
 }
@@ -388,7 +395,7 @@ export function getFearlessSeriesGames(
 }
 
 async function getNextFearlessGameNumber(seriesId: string) {
-  const games = await getFearlessSeriesGames(seriesId);
+  const games = await getFearlessSeriesGames(seriesId, { force: true });
   return Math.max(0, ...games.map((game) => game.gameNumber)) + 1;
 }
 
@@ -465,6 +472,7 @@ export async function syncFearlessLocalRecord(record: LocalHistoryRecord) {
       idempotencyKey: record.id,
     });
     updateLocalHistoryRecord(record.id, {
+      gameNumber: result.gameNumber,
       remoteGameNumber: result.gameNumber,
       syncStatus: "synced",
       syncError: undefined,
@@ -526,11 +534,13 @@ export function saveFearlessGameLocally({
   blueTeam,
   redTeam,
   connectionMode,
+  minimumGameNumber,
 }: {
   seriesId?: string;
   blueTeam: number[];
   redTeam: number[];
   connectionMode: LocalHistoryMode;
+  minimumGameNumber?: number;
 }) {
   validateTeams(blueTeam, redTeam);
   return saveLocalHistoryRecord({
@@ -539,5 +549,55 @@ export function saveFearlessGameLocally({
     blueTeam,
     redTeam,
     connectionMode,
+    minimumGameNumber,
   });
+}
+
+function requireAdminToken() {
+  const token = getAdminToken();
+  if (!token) throw new FearlessSyncError("Configura un Admin Token en Configuración.");
+  return token;
+}
+
+/** The server must verify the bearer token; no frontend state grants authority. */
+export async function validateFearlessAdminToken() {
+  const token = requireAdminToken();
+  const result = await apiRequest("GET", "/api/admin/validate", undefined, token);
+  const payload = result.payload as { valid?: boolean } | null;
+  return result.ok && payload?.valid === true;
+}
+
+export async function updateFearlessGameWinner(seriesId: string, gameNumber: number, winner: "blue" | "red") {
+  const token = requireAdminToken();
+  const path = `/api/series/${encodeURIComponent(seriesId)}/games/${gameNumber}/winner`;
+  const result = await apiRequest("PUT", path, { winner }, token);
+  if (!result.ok) throw new FearlessSyncError(result.status === 404 || result.status === 405
+    ? "FearlessSync aún no admite actualizar el ganador."
+    : "FearlessSync rechazó la actualización del ganador.");
+  invalidateSeriesReadCache(seriesId);
+  const games = await getFearlessSeriesGames(seriesId, { force: true });
+  if (games.find((game) => game.gameNumber === gameNumber)?.winner !== winner) {
+    throw new FearlessSyncError("FearlessSync no confirmó el ganador al recargar la serie.");
+  }
+}
+
+export async function deleteFearlessGame(seriesId: string, gameNumber: number) {
+  const token = requireAdminToken();
+  const path = `/api/series/${encodeURIComponent(seriesId)}/games/${gameNumber}`;
+  const result = await apiRequest("DELETE", path, undefined, token);
+  if (!result.ok) throw new FearlessSyncError(result.status === 404 || result.status === 405
+    ? "FearlessSync aún no admite borrar partidas."
+    : "FearlessSync rechazó el borrado de la partida.");
+  invalidateSeriesReadCache(seriesId);
+  const [games, usedIds] = await Promise.all([
+    getFearlessSeriesGames(seriesId, { force: true }),
+    getUsedFearlessChampionIds(seriesId, { force: true }),
+  ]);
+  if (games.some((game) => game.gameNumber === gameNumber)) {
+    throw new FearlessSyncError("FearlessSync sigue devolviendo la partida borrada.");
+  }
+  const expected = new Set(games.flatMap((game) => [...game.blueTeam, ...game.redTeam]));
+  if (usedIds.length !== expected.size || usedIds.some((id) => !expected.has(id))) {
+    throw new FearlessSyncError("FearlessSync no recalculó los campeones usados.");
+  }
 }

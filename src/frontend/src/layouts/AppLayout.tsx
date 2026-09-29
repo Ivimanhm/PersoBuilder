@@ -42,7 +42,7 @@ function AppHeader({ activePage }: { activePage: PageId }) {
       <div className="header-brand">
         <Logo />
         <span>
-          <strong>PersoBuilder</strong>
+          <strong>Perso-Builder</strong>
           <small>
             {activePage === "draft" ? "PERSONAL DRAFT" : "TU DRAFT, MIS REGLAS"}
           </small>

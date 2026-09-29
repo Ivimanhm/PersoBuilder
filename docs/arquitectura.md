@@ -167,8 +167,10 @@ La serie predeterminada del cliente es `fearless-001`. Los datos remotos se leen
 | `GET` | `/api/health` | Probar si la API está disponible. |
 | `POST` | `/api/series` | Asegurar que exista la serie; una respuesta de “ya existe” se acepta. |
 | `GET` | `/api/series/{seriesId}/used-champions` | Obtener IDs de campeones usados. Si la serie falta, el cliente la crea y repite la lectura. |
-| `GET` | `/api/series/{seriesId}` | Obtener juegos y su número, composición y fecha. |
+| `GET` | `/api/series/{seriesId}` | Obtener juegos y su número, composición, fecha y ganador opcional. |
 | `POST` | `/api/series/{seriesId}/games` | Enviar `gameNumber`, `blueTeam`, `redTeam` e `idempotencyKey`. |
+
+La integración administrativa se describe en [el contrato con FearlessSync](fearlesssync-admin-api.md).
 
 Antes de enviar, el cliente comprueba que haya cinco IDs enteros positivos por equipo y que no existan campeones repetidos en la partida. La API asigna/valida el número remoto; el cliente guarda localmente el número antes de enviar para reutilizarlo en un reintento. `idempotencyKey` usa el ID del registro local para que el servidor pueda reconocer una repetición.
 
@@ -176,7 +178,7 @@ La cola se procesa en orden dentro de cada serie. Si una partida falla, el clien
 
 ### Validación de URL y rutas
 
-La URL base debe ser HTTPS, sin nombre de usuario/contraseña, query o fragmento. El backend nativo rechaza además IPs privadas, loopback, link-local y no especificadas. `fearless_api_request` admite solo `GET` y `POST` bajo rutas que empiezan por `/api/`. Mantén las validaciones también en Rust: la comprobación TypeScript mejora el mensaje de usuario, pero no sustituye el límite del host nativo.
+La URL base debe ser HTTPS, sin nombre de usuario/contraseña, query o fragmento. El backend nativo rechaza además IPs privadas, loopback, link-local y no especificadas. `fearless_api_request` admite `GET`, `POST`, `PATCH`, `PUT` y `DELETE` bajo rutas que empiezan por `/api/`. Mantén las validaciones también en Rust: la comprobación TypeScript mejora el mensaje de usuario, pero no sustituye el límite del host nativo.
 
 ## 9. Comandos Tauri
 

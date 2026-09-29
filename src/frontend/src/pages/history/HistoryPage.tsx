@@ -10,8 +10,12 @@ import {
 } from "../../services/localHistory";
 import {
   defaultFearlessSeriesId,
+  deleteFearlessGame,
   getFearlessSeriesGames,
+  updateFearlessGameWinner,
+  validateFearlessAdminToken,
 } from "../../services/fearlessSync";
+import { getAdminTokenStatus, subscribeToAdminTokenStatus } from "../../services/adminTokenStatus";
 import {
   getConnectionStatus,
   subscribeToConnectionStatus,
@@ -49,20 +53,22 @@ function remoteIdentity(record: HistoryRecord) {
     : "";
 }
 
+function requiresAdminToken(record: HistoryRecord) {
+  return record.kind === "fearless" && (
+    record.source === "online" ||
+    (record.connectionMode === "online" && record.syncStatus === "synced")
+  );
+}
+
 function combineWithoutDuplicates(
   localRecords: HistoryRecord[],
   onlineRecords: HistoryRecord[],
 ) {
   return [
-    ...localRecords,
-    ...onlineRecords.filter((onlineRecord) =>
-      !localRecords.some((localRecord) => {
-        const localIdentity = remoteIdentity(localRecord);
-        const onlineIdentity = remoteIdentity(onlineRecord);
-        return Boolean(localIdentity && localIdentity === onlineIdentity) ||
-          teamSignature(localRecord) === teamSignature(onlineRecord);
-      }),
-    ),
+    ...localRecords.filter((localRecord) => !onlineRecords.some((onlineRecord) =>
+      Boolean(remoteIdentity(localRecord) && remoteIdentity(localRecord) === remoteIdentity(onlineRecord)) ||
+      teamSignature(localRecord) === teamSignature(onlineRecord))),
+    ...onlineRecords,
   ];
 }
 
@@ -84,6 +90,8 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
   const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [adminValid, setAdminValid] = useState(getAdminTokenStatus() === "valid");
+  const [mutating, setMutating] = useState(false);
   const winnerDialogRef = useRef<HTMLDialogElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,11 +99,17 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
 
   useEffect(() => {
     const dialog = winnerDialogRef.current;
-    if (winnerRecord && dialog && !dialog.open) dialog.showModal();
+    if (winnerRecord && dialog && !dialog.open) {
+      dialog.showModal();
+      dialog.focus({ preventScroll: true });
+    }
   }, [winnerRecord]);
   useEffect(() => {
     const dialog = deleteDialogRef.current;
-    if (deleteRecordIds && dialog && !dialog.open) dialog.showModal();
+    if (deleteRecordIds && dialog && !dialog.open) {
+      dialog.showModal();
+      dialog.focus({ preventScroll: true });
+    }
   }, [deleteRecordIds]);
 
   useEffect(() => () => {
@@ -106,6 +120,7 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
     () => subscribeToConnectionStatus(setConnectionStatus),
     [],
   );
+  useEffect(() => subscribeToAdminTokenStatus((status) => setAdminValid(status === "valid")), []);
 
   useEffect(() => {
     if (connectionStatus !== "online") {
@@ -137,6 +152,7 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
           createdAt: game.createdAt,
           blueTeam: game.blueTeam,
           redTeam: game.redTeam,
+          winner: game.winner,
         })));
       })
       .catch((error) => {
@@ -168,7 +184,9 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
       ? localView
       : effectiveSourceFilter === "online"
         ? onlineRecords
-        : combineWithoutDuplicates(localView, onlineRecords);
+        : onlineError
+          ? localView
+          : combineWithoutDuplicates(localView.filter((record) => record.syncStatus !== "synced"), onlineRecords);
     const normalizedSearch = search.toLocaleLowerCase("es");
     return sourceRecords
       .filter((record) => {
@@ -183,20 +201,42 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
       .sort((left, right) =>
         new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
       );
-  }, [championsById, connectionStatus, effectiveSourceFilter, kindFilter, localRecords, onlineRecords, search]);
+  }, [championsById, effectiveSourceFilter, kindFilter, localRecords, onlineError, onlineRecords, search]);
 
-  const setWinner = (side: "blue" | "red") => {
-    if (!winnerRecord || winnerRecord.source !== "local") return;
+  const setWinner = async (side: "blue" | "red") => {
+    if (!winnerRecord || mutating) return;
+    const remoteRecord = requiresAdminToken(winnerRecord);
+    if (remoteRecord && !adminValid) return;
+    setMutating(true);
     try {
+      if (remoteRecord && !await validateFearlessAdminToken()) {
+        setAdminValid(false);
+        throw new Error("El Admin Token ya no es válido.");
+      }
+      if (remoteRecord) {
+        await updateFearlessGameWinner(winnerRecord.seriesId ?? defaultFearlessSeriesId, winnerRecord.remoteGameNumber ?? winnerRecord.gameNumber!, side);
+        setOnlineReload((value) => value + 1);
+        const identity = remoteIdentity(winnerRecord);
+        for (const local of localRecords) {
+          if (local.syncStatus === "synced" && remoteIdentity({ ...local, source: "local" }) === identity) {
+            updateLocalHistoryRecord(local.id, { winner: side });
+          }
+        }
+        setLocalRecords(getLocalHistory());
+      }
+      if (winnerRecord.source === "local") {
       updateLocalHistoryRecord(winnerRecord.id, { winner: side });
+      setLocalRecords((current) => current.map((record) =>
+        record.id === winnerRecord.id ? { ...record, winner: side } : record,
+      ));
+      }
+      setOnlineRecords((current) => current.map((record) => record.id === winnerRecord.id ? { ...record, winner: side } : record));
+      setWinnerRecord(null);
     } catch (error) {
-      setLocalError(error instanceof Error ? error.message : "No se pudo actualizar el historial local.");
-      return;
+      setLocalError(error instanceof Error ? error.message : "No se pudo actualizar la partida.");
+    } finally {
+      setMutating(false);
     }
-    setLocalRecords((current) => current.map((record) =>
-      record.id === winnerRecord.id ? { ...record, winner: side } : record,
-    ));
-    setWinnerRecord(null);
   };
 
   const clearLongPress = () => {
@@ -223,16 +263,43 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
     setSelectionMode(false);
     setSelectedRecordIds(new Set());
   };
-  const deleteSelectedRecords = () => {
+  const deleteSelectedRecords = async () => {
     if (!deleteRecordIds?.length) return;
+    if (mutating) return;
+    setMutating(true);
     try {
       const ids = new Set(deleteRecordIds);
-      deleteLocalHistoryRecords(ids);
+      const targets = [...localRecords.map((record) => ({ ...record, source: "local" as const })), ...onlineRecords]
+        .filter((record) => ids.has(record.id));
+      for (const record of targets) {
+        if (!requiresAdminToken(record)) continue;
+        if (!adminValid) throw new Error("Necesitas un Admin Token válido para borrar partidas Fearless.");
+        if (!await validateFearlessAdminToken()) {
+          setAdminValid(false);
+          throw new Error("El Admin Token ya no es válido.");
+        }
+        if (requiresAdminToken(record)) {
+          await deleteFearlessGame(record.seriesId ?? defaultFearlessSeriesId, record.remoteGameNumber ?? record.gameNumber!);
+          const identity = remoteIdentity(record);
+          for (const local of localRecords) {
+            const localView = { ...local, source: "local" as const };
+            if (local.kind === "fearless" && (
+              (local.syncStatus === "synced" && remoteIdentity(localView) === identity) ||
+              teamSignature(localView) === teamSignature(record)
+            )) ids.add(local.id);
+          }
+        }
+      }
+      deleteLocalHistoryRecords(localRecords.filter((record) => ids.has(record.id)).map((record) => record.id));
       setLocalRecords((current) => current.filter((record) => !ids.has(record.id)));
+      setOnlineRecords((current) => current.filter((record) => !ids.has(record.id)));
+      setOnlineReload((value) => value + 1);
       setDeleteRecordIds(null);
       exitSelection();
     } catch (error) {
       setLocalError(error instanceof Error ? error.message : "No se pudieron eliminar las partidas.");
+    } finally {
+      setMutating(false);
     }
   };
 
@@ -265,7 +332,7 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
           const red = roster(record.redTeam);
           const fearless = record.kind === "fearless";
           const fearlessMode = record.source === "online" || record.connectionMode === "online" ? "online" : "local";
-          const isSelectable = record.source === "local";
+          const isSelectable = record.source === "local" && record.kind === "teams";
           const isSelected = selectedRecordIds.has(record.id);
           return <article
             className={`history-card${isSelected ? " selected" : ""}${selectionMode && isSelectable ? " selectable" : ""}`}
@@ -296,13 +363,13 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
             <header><span className={`history-kind ${record.kind}${fearless ? ` ${fearlessMode}` : ""}`} title={fearless ? `Modo ${fearlessMode === "online" ? "Online" : "Local"}` : undefined}><UiIcon name={fearless ? (fearlessMode === "online" ? "cloud" : "database") : "shuffle"} /></span><div><h2>{fearless ? "Draft Fearless" : "Equipos aleatorios"}</h2><p>{formatDate(record.createdAt)}</p></div><small>{fearless ? `Partida ${record.gameNumber ?? "-"}` : `${record.redTeam.length ? 2 : 1} equipo${record.redTeam.length ? "s" : ""}`}</small></header>
             <div className="history-matchup"><HistoryRoster side="blue" champions={blue} /><span className="history-vs">VS</span><HistoryRoster side="red" champions={red} /></div>
             {record.winner && <div className={`history-winner ${record.winner}`}><i className="bi bi-trophy-fill" />Ganador: Equipo {record.winner === "blue" ? "Azul" : "Rojo"}</div>}
-            {record.source === "local" && !selectionMode && <div className="history-actions"><button type="button" aria-label="Opciones" aria-expanded={openMenuId === record.id} onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}><i className="bi bi-three-dots-vertical" /></button>{openMenuId === record.id && <div className="history-menu"><button type="button" onClick={() => { setWinnerRecord(record); setOpenMenuId(null); }}><i className="bi bi-trophy" />Seleccionar ganador</button><button className="danger" type="button" onClick={() => { setDeleteRecordIds([record.id]); setOpenMenuId(null); }}><i className="bi bi-trash3" />Eliminar partida</button></div>}</div>}
+            {!selectionMode && <div className="history-actions"><button type="button" aria-label="Opciones" aria-expanded={openMenuId === record.id} onClick={() => setOpenMenuId(openMenuId === record.id ? null : record.id)}><i className="bi bi-three-dots-vertical" /></button>{openMenuId === record.id && <div className="history-menu">{(!requiresAdminToken(record) || adminValid) ? <><button type="button" onClick={() => { setWinnerRecord(record); setOpenMenuId(null); }}><i className="bi bi-trophy" />{record.winner ? "Modificar ganador" : "Seleccionar ganador"}</button><button className="danger" type="button" onClick={() => { setDeleteRecordIds([record.id]); setOpenMenuId(null); }}><i className="bi bi-trash3" />Eliminar partida</button></> : <span className="history-admin-hint">Requiere un Admin Token válido</span>}</div>}</div>}
           </article>;
         })}
         {!results.length && <div className="history-empty">No hay partidas que coincidan con la búsqueda</div>}
       </>)}
     </div>
-    {winnerRecord && <dialog ref={winnerDialogRef} className="history-dialog-backdrop" aria-labelledby="winner-dialog-title" onClose={() => setWinnerRecord(null)}><section className="history-dialog"><i className="bi bi-trophy-fill" /><h2 id="winner-dialog-title">Selecciona el ganador</h2><p>¿Qué equipo ganó esta partida?</p><div><button className="blue" type="button" onClick={() => setWinner("blue")}>Equipo Azul</button><button className="red" type="button" onClick={() => setWinner("red")}>Equipo Rojo</button></div><button className="history-dialog-cancel" type="button" onClick={() => setWinnerRecord(null)}>Cancelar</button></section></dialog>}
-    {deleteRecordIds && <dialog ref={deleteDialogRef} className="history-dialog-backdrop" aria-labelledby="delete-dialog-title" onClose={() => setDeleteRecordIds(null)}><section className="history-dialog"><i className="bi bi-trash3" /><h2 id="delete-dialog-title">¿Eliminar {deleteRecordIds.length === 1 ? "partida" : "partidas"}?</h2><p>Esta acción no se puede deshacer.</p><div><button className="history-dialog-cancel" type="button" onClick={() => setDeleteRecordIds(null)}>Cancelar</button><button className="history-delete-confirm" type="button" onClick={deleteSelectedRecords}>Eliminar</button></div></section></dialog>}
+    {winnerRecord && <dialog ref={winnerDialogRef} tabIndex={-1} className="history-dialog-backdrop" aria-labelledby="winner-dialog-title" onClose={() => setWinnerRecord(null)}><section className="history-dialog"><i className="bi bi-trophy-fill" /><h2 id="winner-dialog-title">Selecciona el ganador</h2><p>¿Qué equipo ganó esta partida?</p><div><button className="blue" type="button" disabled={mutating} onClick={() => void setWinner("blue")}>Equipo Azul</button><button className="red" type="button" disabled={mutating} onClick={() => void setWinner("red")}>Equipo Rojo</button></div><button className="history-dialog-cancel" type="button" disabled={mutating} onClick={() => setWinnerRecord(null)}>Cancelar</button></section></dialog>}
+    {deleteRecordIds && <dialog ref={deleteDialogRef} tabIndex={-1} className="history-dialog-backdrop" aria-labelledby="delete-dialog-title" onClose={() => setDeleteRecordIds(null)}><section className="history-dialog"><i className="bi bi-trash3" /><h2 id="delete-dialog-title">¿Eliminar {deleteRecordIds.length === 1 ? "partida" : "partidas"}?</h2><p>Esta acción no se puede deshacer.</p><div><button className="history-dialog-cancel" type="button" disabled={mutating} onClick={() => setDeleteRecordIds(null)}>Cancelar</button><button className="history-delete-confirm" type="button" disabled={mutating} onClick={() => void deleteSelectedRecords()}>{mutating ? "Eliminando..." : "Eliminar"}</button></div></section></dialog>}
   </section>;
 }

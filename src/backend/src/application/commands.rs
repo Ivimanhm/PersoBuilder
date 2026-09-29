@@ -159,10 +159,11 @@ pub async fn fearless_api_request(
     method: String,
     path: String,
     body: Option<serde_json::Value>,
+    auth_token: Option<String>,
     http_client: State<'_, HttpClient>,
 ) -> Result<ApiRequestResult, String> {
     let client = http_client.0.clone();
-    Ok(fearless_api_request_with_client(api_url, method, path, body, client).await)
+    Ok(fearless_api_request_with_client(api_url, method, path, body, auth_token, client).await)
 }
 
 async fn fearless_api_request_with_client(
@@ -170,9 +171,10 @@ async fn fearless_api_request_with_client(
     method: String,
     path: String,
     body: Option<serde_json::Value>,
+    auth_token: Option<String>,
     client: reqwest::Client,
 ) -> ApiRequestResult {
-    if !path.starts_with("/api/") || !matches!(method.as_str(), "GET" | "POST") {
+    if !path.starts_with("/api/") || !matches!(method.as_str(), "GET" | "POST" | "PATCH" | "PUT" | "DELETE") {
         return ApiRequestResult {
             ok: false,
             status: None,
@@ -194,15 +196,18 @@ async fn fearless_api_request_with_client(
             }
         }
     };
-    let request = if method == "POST" {
+    let mut request = if method == "POST" || method == "PATCH" || method == "PUT" {
         client
-            .post(endpoint)
+            .request(match method.as_str() { "PATCH" => reqwest::Method::PATCH, "PUT" => reqwest::Method::PUT, _ => reqwest::Method::POST }, endpoint)
             .header(reqwest::header::CONTENT_TYPE, "application/json")
             .json(&body.unwrap_or(serde_json::Value::Null))
     } else {
-        client.get(endpoint)
+        client.request(if method == "DELETE" { reqwest::Method::DELETE } else { reqwest::Method::GET }, endpoint)
+    };
+    request = request.header(reqwest::header::ACCEPT, "application/json");
+    if let Some(token) = auth_token.filter(|value| !value.is_empty()) {
+        request = request.bearer_auth(token);
     }
-    .header(reqwest::header::ACCEPT, "application/json");
 
     match request.send().await {
         Ok(response) => {

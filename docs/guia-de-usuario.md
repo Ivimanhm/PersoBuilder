@@ -79,9 +79,9 @@ Abre la tarjeta **Historial** desde Inicio. El historial reúne partidas de **Dr
 
 ### Indicar un ganador o borrar partidas
 
-En una tarjeta local, abre el menú de opciones (tres puntos) para **Seleccionar ganador** o **Eliminar partida**. Al seleccionar ganador, elige Equipo Azul o Equipo Rojo. Para eliminar, confirma en el diálogo; el borrado no se puede deshacer.
+Todas las tarjetas Fearless muestran el menú de tres puntos. Para asignar o modificar el ganador, o borrar una partida Fearless, configura un **Admin Token** válido en Ajustes y utiliza el modo Online. Las partidas sincronizadas usan las rutas administrativas descritas en [el contrato de integración](fearlesssync-admin-api.md). La app solo actualiza su copia local tras confirmar el cambio remoto. Las partidas creadas en modo Local permanecen únicamente en este dispositivo.
 
-Para eliminar varias partidas locales, mantén pulsada una tarjeta durante aproximadamente medio segundo. Marca las tarjetas que quieras quitar y pulsa **Eliminar**. Pulsa **Cancelar** para salir del modo de selección. Las partidas que vienen solo de la API son de solo lectura desde esta pantalla: no se pueden marcar como ganadoras ni borrar aquí.
+Para eliminar varias tarjetas de Equipos aleatorios, mantén pulsada una tarjeta durante aproximadamente medio segundo. Marca las tarjetas que quieras quitar y pulsa **Eliminar**. Pulsa **Cancelar** para salir del modo de selección.
 
 El historial local mantiene hasta 250 registros ordinarios. Las partidas Fearless pendientes o con errores de sincronización tienen prioridad para que se puedan reintentar; si el almacenamiento está lleno y no es posible conservar un nuevo registro, la app mostrará un error.
 
@@ -89,7 +89,7 @@ El historial local mantiene hasta 250 registros ordinarios. Las partidas Fearles
 
 1. Abre **Ajustes**.
 2. Introduce la URL base de la API, por ejemplo `https://api.ejemplo.com`.
-3. Pulsa **Guardar**. La app normaliza la dirección, la guarda localmente y ejecuta una comprobación de salud.
+3. Pulsa **Guardar**. La app guarda la dirección localmente y ejecuta una comprobación de salud. El **Admin Token** solo se configura para seleccionar ganadores y borrar partidas.
 4. Revisa el resultado. Si conecta, la app pasa a Online. Si no conecta, permanece en Local; el diálogo **Salida del health check** muestra el diagnóstico de red.
 5. Cuando el servicio esté disponible, vuelve a guardar la URL o pulsa el botón de modo de la cabecera para volver a comprobar e intentar Online.
 

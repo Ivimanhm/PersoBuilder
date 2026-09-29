@@ -13,4 +13,7 @@ import "./pages/history/history.css";
 import "./components/TeamTable/team-table.css";
 import "./layouts/app-layout.css";
 
+// El token de escritura ya no se usa; elimina cualquier valor guardado por versiones anteriores.
+try { localStorage.removeItem("perso-builder-write-api-token"); } catch { /* Almacenamiento no disponible. */ }
+
 render(<App />, document.getElementById("app")!);

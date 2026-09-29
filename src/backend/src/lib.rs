@@ -1,3 +1,7 @@
+// MSVC imprime la creación de la biblioteca de importación en stdout; Rust la
+// reporta como linker_messages aunque sea solo un mensaje de progreso.
+#![cfg_attr(target_os = "windows", allow(linker_messages))]
+
 #[path = "domain/champion.rs"]
 mod champion;
 #[path = "infrastructure/persistence/champion_repository.rs"]

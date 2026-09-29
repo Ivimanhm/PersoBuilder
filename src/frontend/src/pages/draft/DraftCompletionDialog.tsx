@@ -30,14 +30,20 @@ export function DraftCompletionDialog({
   onSave,
 }: DraftCompletionDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  useEffect(() => { dialogRef.current?.showModal(); }, []);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    dialog.showModal();
+    titleRef.current?.focus({ preventScroll: true });
+  }, []);
   const roster = (slots: (Champion | null)[]) => slots.map((champion) => champion?.name).filter(Boolean).join(" · ");
   return (
     <dialog ref={dialogRef} className="draft-completion-modal" aria-labelledby="draft-completion-title" onClose={onClose}>
       <section className="draft-completion-dialog">
         <span className="draft-completion-icon"><UiIcon name="shield" /></span>
         <small>Draft Fearless completado</small>
-        <h2 id="draft-completion-title">La partida está lista</h2>
+        <h2 ref={titleRef} tabIndex={-1} id="draft-completion-title">La partida está lista</h2>
         <p>Revisa la selección antes de guardarla en el historial</p>
         {!savedGameNumber && <div className="draft-completion-summary"><div><strong>Equipo Azul</strong><span>{roster(blueSlots)}</span></div><div><strong>Equipo Rojo</strong><span>{roster(redSlots)}</span></div></div>}
         {savedGameNumber
