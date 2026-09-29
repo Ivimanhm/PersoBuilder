@@ -109,8 +109,8 @@ La configuración común `tauri.conf.json` fija el producto y el binario como `P
 
 - Desarrollo: `src/backend/target/debug/Perso-Builder.exe`
 - Build: `src/backend/target/release/Perso-Builder.exe` (ejecutable de la app, no instalador)
-- Instalador MSI: `src/backend/target/release/bundle/msi/Perso-Builder-1.0.0.msi`
-- Instalador NSIS: `src/backend/target/release/bundle/nsis/Perso-Builder-1.0.0-setup.exe`
+- Instalador MSI: `src/backend/target/release/bundle/msi/Perso-Builder-1.0.1.msi`
+- Instalador NSIS: `src/backend/target/release/bundle/nsis/Perso-Builder-1.0.1-setup.exe`
 
 Los dos nombres de instalador usan la versión declarada en Tauri y Cargo. El script estandariza automáticamente los nombres que genera Tauri, incluyendo la arquitectura en el nombre original.
 
