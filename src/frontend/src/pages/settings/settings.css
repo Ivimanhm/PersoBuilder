@@ -1,8 +1,7 @@
 .settings-page {
   max-width: 970px;
 }
-.settings-card,
-.settings-info {
+.settings-card {
   position: relative;
   overflow: hidden;
   border: 1px solid #315265;
@@ -37,8 +36,7 @@
 .settings-card-icon i {
   font-size: 32px;
 }
-.settings-card h2,
-.settings-info h2 {
+.settings-card h2 {
   margin: 0;
   color: #f3f4f6;
   font-size: 21px;
@@ -110,27 +108,9 @@
 .settings-saved.offline {
   color: #efb36b;
 }
-.settings-info {
-  padding: 20px;
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-}
-.settings-info > i {
-  margin-top: 2px;
-  color: #4ca3ed;
-  font-size: 31px;
-}
-.settings-info h2 {
-  font-size: 17px;
-}
-.settings-info p {
-  max-width: 620px;
-  margin: 7px 0 0;
-  color: #aab9c9;
-  font-size: 14px;
-  line-height: 1.48;
-}
+.admin-status.idle,
+.admin-status.checking { color: #9baab8; }
+.admin-status.invalid { color: #ff8994; }
 @media (max-width: 620px) {
   .settings-page {
     padding: 16px;
@@ -154,8 +134,7 @@
   .settings-card h2 {
     font-size: 18px;
   }
-  .settings-card-heading p,
-  .settings-info p {
+  .settings-card-heading p {
     font-size: 12px;
   }
   .api-url-label {
@@ -167,16 +146,6 @@
   }
   .api-url-input input {
     font-size: 12px;
-  }
-  .settings-info {
-    padding: 16px;
-    gap: 12px;
-  }
-  .settings-info > i {
-    font-size: 27px;
-  }
-  .settings-info h2 {
-    font-size: 16px;
   }
 }
 @media (max-width: 380px) {
@@ -198,9 +167,6 @@
   }
   .api-url-input input {
     font-size: 11px;
-  }
-  .settings-info {
-    padding: 13px;
   }
 }
 .health-diagnostic-backdrop {

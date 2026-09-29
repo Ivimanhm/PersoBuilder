@@ -7,6 +7,7 @@ import { DraftCompletionDialog } from "./DraftCompletionDialog";
 import {
   FearlessSyncError,
   defaultFearlessSeriesId,
+  getFearlessSeriesGames,
   getUsedFearlessChampionIds,
   saveFearlessGameLocally,
   syncFearlessLocalRecord,
@@ -80,7 +81,7 @@ export function DraftPage({
       .then((ids) => {
         if (active) {
           setUsedChampionIds(new Set([
-            ...getLocalUsedFearlessChampionIds(defaultFearlessSeriesId),
+            ...getLocalUsedFearlessChampionIds(defaultFearlessSeriesId, false),
             ...ids,
           ]));
         }
@@ -166,6 +167,17 @@ export function DraftPage({
     const blueTeam = blueSlots.flatMap((champion) => champion ? [champion.id] : []);
     const redTeam = redSlots.flatMap((champion) => champion ? [champion.id] : []);
     const mode = getConnectionStatus() === "online" ? "online" : "local";
+    let minimumGameNumber = 1;
+    if (mode === "online") {
+      try {
+        const games = await getFearlessSeriesGames(defaultFearlessSeriesId, { force: true });
+        minimumGameNumber = Math.max(0, ...games.map((game) => game.gameNumber)) + 1;
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : "No se pudo consultar la numeración de la serie.");
+        setSaving(false);
+        return;
+      }
+    }
     let localGame;
     try {
       // Este paso siempre ocurre primero y no depende del modo ni de la API.
@@ -173,6 +185,7 @@ export function DraftPage({
         blueTeam,
         redTeam,
         connectionMode: mode,
+        minimumGameNumber,
       });
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "No se pudo guardar la partida.");
@@ -195,7 +208,7 @@ export function DraftPage({
     try {
       const result = await syncFearlessLocalRecord(localGame);
       if (!result) throw new Error("No se pudo preparar la partida para sincronizar.");
-      setSavedGameNumber(localGameNumber);
+      setSavedGameNumber(result.gameNumber);
       setSaveOutcome("synced");
       setApiDiagnostic(result.diagnostic);
     } catch (error) {

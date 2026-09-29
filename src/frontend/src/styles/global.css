@@ -962,7 +962,7 @@ body {
   height: 76%;
 }
 .logo-large {
-  background: url("/brand/Logo.png") center/contain no-repeat;
+  background: url("/Logo.png?v=20260927") center/contain no-repeat;
 }
 .logo-large img {
   opacity: 0;

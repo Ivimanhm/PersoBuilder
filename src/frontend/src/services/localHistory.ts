@@ -131,17 +131,18 @@ export function getPendingFearlessSyncRecords() {
   );
 }
 
-export function saveLocalHistoryRecord({ kind, blueTeam, redTeam, seriesId, connectionMode }: {
+export function saveLocalHistoryRecord({ kind, blueTeam, redTeam, seriesId, connectionMode, minimumGameNumber = 1 }: {
   kind: LocalHistoryKind;
   blueTeam: number[];
   redTeam: number[];
   seriesId?: string;
   connectionMode?: LocalHistoryMode;
+  minimumGameNumber?: number;
 }): LocalHistoryRecord {
   const records = readHistory();
   const gameNumber = kind === "fearless"
-    ? Math.max(0, ...records.filter((record) => record.kind === "fearless" && record.seriesId === seriesId)
-      .map((record) => record.gameNumber ?? 0)) + 1
+    ? Math.max(minimumGameNumber - 1, ...records.filter((record) => record.kind === "fearless" && record.seriesId === seriesId)
+      .map((record) => Math.max(record.gameNumber ?? 0, record.remoteGameNumber ?? 0))) + 1
     : undefined;
   const record: LocalHistoryRecord = {
     id: crypto.randomUUID(), kind, createdAt: new Date().toISOString(),
@@ -153,14 +154,14 @@ export function saveLocalHistoryRecord({ kind, blueTeam, redTeam, seriesId, conn
   return record;
 }
 
-export function getLocalUsedFearlessChampionIds(seriesId: string) {
-  return [...new Set(readHistory().filter((record) => record.kind === "fearless" && (record.seriesId === seriesId || record.seriesId === undefined))
+export function getLocalUsedFearlessChampionIds(seriesId: string, includeSynced = true) {
+  return [...new Set(readHistory().filter((record) => record.kind === "fearless" && (record.seriesId === seriesId || record.seriesId === undefined) && (includeSynced || record.syncStatus !== "synced"))
     .flatMap((record) => [...record.blueTeam, ...record.redTeam]))];
 }
 
 export function updateLocalHistoryRecord(
   id: string,
-  changes: Partial<Pick<LocalHistoryRecord, "winner" | "remoteGameNumber" | "syncStatus" | "syncError" | "syncAttemptCount" | "syncUpdatedAt">>,
+  changes: Partial<Pick<LocalHistoryRecord, "winner" | "gameNumber" | "remoteGameNumber" | "syncStatus" | "syncError" | "syncAttemptCount" | "syncUpdatedAt">>,
 ) {
   writeHistory(readHistory().map((record) => record.id === id ? { ...record, ...changes } : record));
 }

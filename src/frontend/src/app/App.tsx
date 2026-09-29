@@ -14,6 +14,9 @@ import { useVirtualKeyboardViewport } from "./useVirtualKeyboardViewport";
 import { useEffect } from "preact/hooks";
 import { getConnectionStatus, refreshConnectionStatusIfStale, subscribeToConnectionStatus } from "../services/connectionStatus";
 import { syncPendingFearlessGames } from "../services/fearlessSync";
+import { getAdminToken } from "../services/adminToken";
+import { checkAdminTokenAtStartup } from "../services/adminTokenStatus";
+import { validateFearlessAdminToken } from "../services/fearlessSync";
 
 export function App() {
   useVirtualKeyboardViewport();
@@ -22,8 +25,17 @@ export function App() {
       if (document.visibilityState === "visible") void refreshConnectionStatusIfStale();
     };
     refresh();
+    const checkAdmin = () => {
+      if (getConnectionStatus() === "online" && getAdminToken()) {
+        void checkAdminTokenAtStartup(validateFearlessAdminToken);
+      }
+    };
+    checkAdmin();
     const unsubscribe = subscribeToConnectionStatus((status) => {
-      if (status === "online") void syncPendingFearlessGames();
+      if (status === "online") {
+        void syncPendingFearlessGames();
+        checkAdmin();
+      }
     });
     if (getConnectionStatus() === "online") void syncPendingFearlessGames();
     document.addEventListener("visibilitychange", refresh);
