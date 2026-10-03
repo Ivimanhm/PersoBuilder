@@ -36,7 +36,7 @@ export function DraftChampionPicker({
   const championListRef = useRef<HTMLDivElement>(null);
   const concealed = loading || Boolean(error);
   return (
-    <section className="champion-picker">
+    <section className={`champion-picker${error && !loading ? " has-error" : ""}`}>
       <header className={concealed ? "draft-picker-concealed" : ""}>
         <TextField containerClassName="champion-search" prefix={<i className="bi bi-search" />} value={search} onValueChange={onSearchChange} placeholder="Buscar campeón..." ariaLabel="Buscar campeón" />
         <Select

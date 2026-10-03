@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import type { Champion, Role } from "../../types";
-import { DraftTable, type DraftTarget } from "../../components/DraftTable/DraftTable";
+import { DraftTable, type DraftSide, type DraftTarget } from "../../components/DraftTable/DraftTable";
 import { Timer } from "../../components/Timer/Timer";
 import { DraftChampionPicker } from "./DraftChampionPicker";
 import { DraftCompletionDialog } from "./DraftCompletionDialog";
@@ -140,6 +140,19 @@ export function DraftPage({
     setTarget(next);
     setDeadline(Date.now() + 30_000);
   };
+  const swapCells = (side: DraftSide, from: number, to: number) => {
+    const setSlots = side === "blue" ? setBlueSlots : setRedSlots;
+    setSlots((current) => {
+      const next = [...current];
+      [next[from], next[to]] = [next[to], next[from]];
+      return next;
+    });
+  };
+  const clearDragSelection = () => {
+    setTarget(null);
+    setSelected(null);
+    setCompletionDeadline(null);
+  };
   const continueEditing = () => {
     setCompletionModalOpen(false);
     setSaveError("");
@@ -240,6 +253,9 @@ export function DraftPage({
         redSlots={redSlots}
         target={target}
         onSelectSlot={selectTarget}
+        draggableCells
+        onCellDragStart={clearDragSelection}
+        onCellsSwap={swapCells}
       />
       <section className="current-turn">
         <div>
