@@ -3,6 +3,11 @@
   "identifier": "default",
   "description": "Permisos mínimos de la ventana principal",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/Ivimanhm/PersoBuilder/releases/download/*/*.apk" }]
+    }
+  ]
 }
-

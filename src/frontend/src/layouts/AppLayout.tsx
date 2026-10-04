@@ -7,6 +7,7 @@ import {
 import { Logo } from "../components/Logo/Logo";
 import { UiIcon } from "../components/UiIcon/UiIcon";
 import { PageHeader } from "../components/PageHeader/PageHeader";
+import { NotificationBell } from "../components/NotificationBell/NotificationBell";
 import type { PageLayoutConfig } from "../app/pageLayoutConfig";
 import {
   activateLocalMode,
@@ -48,6 +49,7 @@ function AppHeader({ activePage }: { activePage: PageId }) {
           </small>
         </span>
       </div>
+      <NotificationBell />
       <button
         className={`local-status ${online ? "online-status" : ""}`}
         type="button"

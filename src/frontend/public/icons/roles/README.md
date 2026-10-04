@@ -1,5 +1,7 @@
 # Iconos de posiciones
 
+**Última actualización:** 4 de octubre de 2026.
+
 ## Tabla de contenidos
 
 1. [Visión general](#visión-general)
@@ -36,7 +38,7 @@ Los iconos proceden de los recursos públicos del cliente de League of Legends p
 https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-champ-select/global/default/svg/
 ```
 
-La última consulta registrada fue el 14 de septiembre de 2026.
+La última consulta registrada de estos recursos fue el 14 de septiembre de 2026. La fecha de revisión de este documento no implica una nueva descarga de los SVG.
 
 ---
 

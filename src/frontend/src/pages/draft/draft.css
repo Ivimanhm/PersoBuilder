@@ -633,8 +633,11 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
+  padding: 20px;
   color: #adbdcb;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
   background: rgba(5, 16, 23, 0.72);
 }
 .champion-picker > .draft-champions-status {
@@ -654,13 +657,29 @@
 .draft-champions-status.error {
   border-color: #70404a;
   color: #ffc1c8;
+  flex-direction: column;
+  gap: 12px;
+}
+.champion-picker.has-error > .draft-picker-concealed {
+  display: none;
+}
+.champion-picker > .draft-champions-status.error {
+  position: static;
+  width: 100%;
+  min-height: 172px;
 }
 .draft-champions-status.error > span {
-  max-width: 220px;
+  width: 100%;
+  max-width: 340px;
+  min-width: 0;
+  overflow-wrap: anywhere;
   text-align: center;
 }
 .draft-champions-status.error > i {
   animation: none;
+  flex: 0 0 auto;
+  font-size: 22px;
+  line-height: 1;
 }
 .draft-champions-status button {
   padding: 7px 10px;
@@ -671,10 +690,11 @@
   cursor: pointer;
 }
 .draft-champions-status.error button {
-  position: absolute;
-  top: 50%;
-  right: 2px;
-  transform: translateY(-50%);
+  flex: 0 0 auto;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 8px 18px;
+  line-height: 1.4;
 }
 @keyframes draft-loading-spin {
   to { transform: rotate(360deg); }

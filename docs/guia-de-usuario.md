@@ -1,5 +1,7 @@
 # Guía de usuario
 
+**Última actualización:** 4 de octubre de 2026.
+
 PersoBuilder permite sortear equipos de League of Legends, preparar un draft Fearless, elegir un campeón con una ruleta y revisar partidas anteriores. El catálogo y las funciones principales están disponibles en Local; Online se usa para compartir el historial Fearless a través de la API configurada.
 
 ## 1. Empezar y navegar
@@ -43,7 +45,15 @@ Un draft consta de cinco selecciones para el Equipo Azul y cinco para el Equipo 
 
 El temporizador empieza con 30 segundos al elegir una celda y vuelve a empezar tras confirmar una selección. Cuando termina el draft aparece una ventana de revisión de 20 segundos; si el tiempo vence, la ventana se abre automáticamente. El temporizador no elige campeones ni descarta la partida. Si vuelves a editar, el plazo de revisión comienza de nuevo.
 
-Un campeón seleccionado en una celda deja de aparecer entre las opciones del draft actual. En la serie Fearless que usa la app, también quedan excluidos los campeones de drafts anteriores guardados localmente. En Online, la app añade los campeones que comunica la API. La lista no podrá actualizarse si falla la consulta Online; la pantalla muestra un error y ofrece **Reintentar**.
+Un campeón seleccionado deja de aparecer entre las opciones del draft actual. En Local se excluyen los usados del historial local. En Online se ofrecen exclusivamente los IDs de `availableChampions` de Fearless. Si el catálogo falla, aparece el error y **Reintentar**; no se liberan los campeones.
+
+### Serie Fearless
+
+En Online, la app conserva internamente la serie y el número de partida devueltos por Fearless; no muestra el ID técnico encima de la tabla. El servidor cambia de serie cuando quedan menos de 10 campeones disponibles. La app vuelve a consultar el estado antes de cada partida y no exige elegir ni crear manualmente una serie.
+
+El historial permite introducir el ID exacto de una serie anterior y sugiere los IDs guardados en el dispositivo. Las partidas de Equipos aleatorios no dependen de la serie.
+
+Si otra instancia cambia la serie, se muestra el conflicto y la partida queda guardada localmente sin enviarse a la nueva serie. Si falla el catálogo o la sincronización, puedes reintentar. Los reintentos conservan la identidad original.
 
 ### Guardado Local y Online
 
@@ -79,7 +89,7 @@ Abre la tarjeta **Historial** desde Inicio. El historial reúne partidas de **Dr
 
 ### Indicar un ganador o borrar partidas
 
-Todas las tarjetas Fearless muestran el menú de tres puntos. Para asignar o modificar el ganador, o borrar una partida Fearless, configura un **Admin Token** válido en Ajustes y utiliza el modo Online. Las partidas sincronizadas usan las rutas administrativas descritas en [el contrato de integración](fearlesssync-admin-api.md). La app solo actualiza su copia local tras confirmar el cambio remoto. Las partidas creadas en modo Local permanecen únicamente en este dispositivo.
+Las tarjetas muestran el menú de tres puntos para seleccionar o modificar un ganador y eliminar una partida. Las entradas que solo están guardadas en el dispositivo se gestionan localmente. Para modificar o borrar una partida Fearless remota, o su copia ya sincronizada, configura un **Admin Token** válido en Ajustes. Estas acciones usan las rutas administrativas descritas en [el contrato de integración](fearlesssync-admin-api.md); la app actualiza su copia local después de comprobar el cambio remoto.
 
 Para eliminar varias tarjetas de Equipos aleatorios, mantén pulsada una tarjeta durante aproximadamente medio segundo. Marca las tarjetas que quieras quitar y pulsa **Eliminar**. Pulsa **Cancelar** para salir del modo de selección.
 
@@ -101,20 +111,33 @@ La URL solo se utiliza para las funciones Fearless: comprobar disponibilidad, co
 
 - El catálogo de campeones se distribuye con la app. La versión nativa se mantiene en SQLite; el modo web usa un JSON incluido con el frontend.
 - Historial, URL de API y preferencia/estado reciente de conexión se guardan en el almacenamiento local del WebView o navegador.
+- El Admin Token y la marca del último aviso de actualización leído también se guardan localmente. No se comparten entre dispositivos.
 - Las selecciones de un draft sin guardar existen solo en memoria. Si cierras o recargas la app antes de guardar, se pierden.
 - La generación de equipos se registra localmente. Solo los drafts Fearless guardados cuando la app está Online se envían a la API.
 - No necesitas una cuenta para las funciones descritas aquí.
 
 Si borras los datos locales de la app o del navegador, puedes perder el historial, la URL configurada y el estado de conexión. La base SQLite del catálogo no es la copia del historial.
 
-## 8. Solución de problemas
+## 8. Notificaciones y actualizaciones de Android
+
+Pulsa la campana de la cabecera para abrir las notificaciones. El punto indica que hay una actualización sin leer; al abrir el aviso, desaparece el punto, pero la descarga sigue disponible hasta que instales la nueva versión.
+
+Cuando se detecta una versión superior de Android, el aviso muestra el icono, el nombre con la versión y **Descargar APK**. Al pulsarlo se abre el navegador con el archivo publicado en GitHub Releases. Descárgalo, ábrelo y confirma la actualización en Android. El sistema puede pedir permiso para instalar desde ese navegador. La app no instala la actualización automáticamente.
+
+Puedes cerrar el panel con la **X**, pulsando la campana, pulsando fuera o arrastrándolo hacia un lado. El panel acompaña el arrastre y vuelve a su posición si el gesto es corto.
+
+Si no se detecta una versión nueva, el panel muestra **No hay actualizaciones disponibles** y permite **Comprobar actualizaciones**. Si falla la consulta, muestra el error y **Reintentar**. Esta comprobación necesita Internet y es independiente del modo Local/Online de Fearless. Las versiones de prueba y las releases sin APK universal no se ofrecen. En la app nativa de escritorio no se muestran APKs de Android.
+
+## 9. Solución de problemas
 
 | Problema | Qué probar |
 | --- | --- |
 | No aparece el catálogo o las imágenes | Comprueba que la app terminó de cargar. En Equipos, usa **Reintentar catálogo** si aparece el botón. El catálogo incluido no requiere conexión a Fearless. |
 | No puedo entrar en Online | Abre Ajustes, revisa que la URL use HTTPS y pulsa Guardar. Consulta el diagnóstico. Comprueba que el servicio esté accesible; en web, revisa CORS en el servidor. |
 | La lista del Draft no aparece al estar Online | La app no pudo consultar campeones usados en la API y bloquea las selecciones para evitar continuar con una lista posiblemente incompleta. Pulsa **Reintentar** o cambia a Local desde la cabecera para continuar con el historial que hay en el dispositivo. |
-| Un draft aparece como no sincronizado | La copia local se conserva. Vuelve a Online con la API disponible; la app reintentará las partidas pendientes. |
+| Un draft aparece como no sincronizado | La copia local se conserva. Vuelve a Online con la API disponible o usa el reintento del diálogo. Un conflicto de serie no se reenvía automáticamente a una serie nueva. |
 | Un campeón no aparece en Draft | Puede estar ya seleccionado en el draft, usado anteriormente en la serie Fearless, excluido por el filtro de posición o no coincidir con la búsqueda. En Online, prueba **Reintentar** si no carga la lista de usados. |
-| No puedo borrar una partida Online | El historial remoto es de solo lectura en la app. Solo se pueden gestionar los registros locales desde esta pantalla. |
+| No puedo borrar una partida Online | Configura un Admin Token válido en Ajustes y comprueba que la API está disponible. Si falla la operación remota, la copia local se conserva. |
+| No se pueden consultar actualizaciones | Comprueba la conexión y pulsa **Reintentar**. Si GitHub limita las consultas, espera antes de volver a probar. No es necesario cambiar el modo Fearless. |
+| Android no permite instalar el APK | Abre el APK desde las descargas y revisa el permiso de instalación del navegador. Para actualizar la app existente debe ser un APK firmado con la misma clave y con una versión superior. |
 | No se puede guardar una partida o resultado | Libera espacio en el dispositivo/navegador e inténtalo otra vez. Los datos locales tienen un límite de almacenamiento. |

@@ -1,5 +1,7 @@
 # Recursos del backend
 
+**Última actualización:** 4 de octubre de 2026.
+
 ## Tabla de contenidos
 
 1. [Visión general](#visión-general)
@@ -30,6 +32,8 @@ resources/
 | `data/champions.json` | Campeones, identificadores, roles y rutas de retratos. |
 | `data/dataset-meta.json` | Versión de Data Dragon, fecha de generación, fuentes y regla de posiciones. |
 
+El dataset incluido contiene 173 campeones y usa Data Dragon `16.18.1`. Sus metadatos registran la generación el 14 de septiembre de 2026; revisar este documento no actualiza el catálogo ni esa fecha. El historial y las preferencias de usuario se guardan aparte, en el almacenamiento local del WebView o navegador.
+
 ---
 
 ## Uso durante el arranque
@@ -38,7 +42,7 @@ resources/
 
 - Si no hay versión previa o la versión cambió, reemplaza el catálogo dentro de una transacción.
 - Si la versión no cambió, no escribe de nuevo los campeones.
-- Los datos de catálogo se mantienen separados de los futuros datos de usuario.
+- Los datos de catálogo se mantienen separados del historial y las preferencias del dispositivo.
 
 ---
 

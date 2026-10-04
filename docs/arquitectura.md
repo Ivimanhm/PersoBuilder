@@ -1,5 +1,7 @@
 # Arquitectura de PersoBuilder
 
+**Última actualización:** 4 de octubre de 2026.
+
 Este documento explica cómo funciona la implementación actual y dónde realizar cambios. Describe las capas de la app, sus dependencias, el recorrido de los datos y los límites entre persistencia local y servicios remotos. La guía de comportamiento visible está en la [Guía de usuario](guia-de-usuario.md).
 
 ## 1. Resumen
@@ -10,6 +12,7 @@ PersoBuilder está dividido en una interfaz web y un host nativo opcional:
 - **Host de escritorio/móvil:** Tauri 2 presenta la interfaz en un WebView. Sus comandos Rust ofrecen acceso al catálogo SQLite, generación de equipos y peticiones Fearless.
 - **Modo web:** sirve la misma interfaz sin Tauri. Lee el catálogo JSON distribuido con el frontend y genera equipos en TypeScript. Las llamadas a Fearless se realizan con `fetch` y dependen de CORS.
 - **Servicio Fearless:** API HTTPS configurada por el usuario; mantiene datos compartidos de una serie. Su implementación de servidor no forma parte de este repositorio.
+- **Actualizaciones Android:** consulta pública a GitHub Releases mediante `fetch`. La descarga se abre en el navegador del sistema con el complemento nativo `tauri-plugin-opener`.
 
 ```mermaid
 flowchart LR
@@ -22,12 +25,16 @@ flowchart LR
   SQLite[(draftlab.db: metadatos y catálogo)]
   API[API Fearless HTTPS]
   Web[Modo web: JSON y generación local]
+  GitHub[GitHub Releases: APKs Android]
+  Browser[Navegador del sistema]
 
   User --> UI --> Services
   Services <--> LS
   Services --> Tauri --> Rust --> SQLite
   Services <--> API
   Services -. si no hay Tauri .-> Web
+  Services --> GitHub
+  Services --> Browser
 ```
 
 ## 2. Estructura y responsabilidades
@@ -43,7 +50,8 @@ flowchart LR
 | `app/useAppNavigation.ts` | Mantiene navegación y pantalla de bienvenida en memoria. |
 | `app/useChampionCatalog.ts` | Carga el catálogo y habilita reintentar su lectura. |
 | `app/useTeamGeneration.ts` | Mantiene las opciones y el resultado temporal del generador; registra cada resultado en el historial local. |
-| `layouts/AppLayout.tsx` | Presenta cabecera de modo, encabezado de página, área de scroll y navegación inferior. |
+| `layouts/AppLayout.tsx` | Presenta cabecera de modo y notificaciones, encabezado de página, área de scroll y navegación inferior. |
+| `components/NotificationBell/NotificationBell.tsx` | Avisos de actualización, marca de lectura, descarga y cierre con botón, teclado o arrastre. |
 | `pages/` | Composición y estado local de cada pantalla. El CSS específico suele estar junto a su página. |
 | `components/` | Tablas de equipos/draft, controles, iconos, temporizador y tarjetas reutilizables. |
 | `services/` | Frontera entre las páginas y los detalles de persistencia, Tauri y HTTP. |
@@ -60,6 +68,9 @@ Las páginas no deberían crear otro header, footer o contenedor principal despl
 | `services/appSettings.ts` | Lee, normaliza y guarda la URL Fearless. Exige HTTPS y descarta credenciales, query y fragmento. |
 | `services/connectionStatus.ts` | Mantiene estado Local/Online, llama al health check y evita comprobaciones demasiado frecuentes. |
 | `services/fearlessSync.ts` | Lee/escribe la serie remota, mantiene cachés de lectura y reintenta registros locales pendientes. |
+| `services/fearlessSeries.ts` | ID de compatibilidad `fearless-001` para registros locales y antiguos. No calcula IDs de series Online. |
+| `services/adminToken.ts`, `services/adminTokenStatus.ts` | Token local de administración y estado de su validación. |
+| `services/appUpdates.ts` | Consulta releases, compara versiones, filtra APKs universales y abre una descarga permitida. |
 
 ### Backend: `src/backend/src`
 
@@ -70,7 +81,7 @@ Las páginas no deberían crear otro header, footer o contenedor principal despl
 | `infrastructure/persistence/champion_repository.rs` | Aplica migraciones, importa un dataset versionado y consulta campeones. |
 | `services/team_generator.rs` | Valida parámetros y construye equipos con el catálogo recibido. |
 | `support/error.rs` | Tipos de errores que traducen fallos internos a mensajes de comando. |
-| `lib.rs` | Crea el directorio de datos, inicializa SQLite y registra estado y comandos Tauri. |
+| `lib.rs` | Crea el directorio de datos, inicializa SQLite y registra estado, comandos Tauri y el complemento de apertura de URLs. |
 | `main.rs` | Punto de entrada del ejecutable Tauri. |
 
 ## 3. Arranque de la aplicación
@@ -97,7 +108,7 @@ En modo web no se ejecuta este arranque Rust. `draftlab.ts` obtiene `/champions.
 
 ### Generación de equipos
 
-`useTeamGeneration` conserva el modo de generación, número de equipos y resultado hasta que la pantalla desmonta o se cambia la configuración. Al pulsar Generar, `draftlab.generateTeams()` selecciona la implementación:
+`useTeamGeneration` vive en `App`, por lo que conserva el modo de generación, número de equipos y resultado al navegar entre pantallas. Cambiar el número de equipos borra el resultado mostrado; generar de nuevo lo reemplaza. Al pulsar Generar, `draftlab.generateTeams()` selecciona la implementación:
 
 - **Tauri:** invoca `generate_teams`; Rust vuelve a leer el catálogo SQLite y llama al servicio de generación.
 - **Web:** filtra campeones excluidos y genera el resultado en TypeScript.
@@ -111,6 +122,8 @@ El fallback web es funcional pero no comparte el algoritmo de búsqueda recursiv
 `App.tsx` es el compositor, no un router completo. Mantiene una página activa y renderiza condicionalmente la pantalla correspondiente. `AppLayout` contiene la navegación persistente y los estados de conexión. La ruta `?preview=<page>` existe para previsualizar pantallas durante el desarrollo; no es una ruta de navegación pública.
 
 El estado transitorio —por ejemplo, el draft que aún no se ha guardado, la celda activa, la búsqueda y los filtros— vive en memoria. Al recargar, el draft incompleto se pierde. El historial sí se persiste por separado.
+
+La campana se coloca junto al separador del control de modo, sin fondo. El panel se cierra con la **X**, la campana, una pulsación fuera, Escape o un arrastre horizontal. Los eventos de puntero actualizan la posición durante el gesto; un arrastre corto vuelve a la posición inicial. Los botones del panel no capturan el gesto de arrastre para que sus pulsaciones funcionen.
 
 ## 6. Persistencia y datos
 
@@ -137,11 +150,13 @@ Actualmente SQLite no almacena historial, ajustes, drafts en curso ni datos de c
 | `winner` | Ganador local opcional (`blue` o `red`). |
 | `seriesId`, `gameNumber` | Identidad y número de partida Fearless. |
 | `connectionMode` | Si la partida se creó en modo Local u Online. |
-| `remoteGameNumber`, `syncStatus`, `syncError`, `syncAttemptCount`, `syncUpdatedAt` | Estado e información necesaria para reintentar la sincronización. |
+| `remoteGameNumber`, `syncStatus`, `syncBlocked`, `syncError`, `syncAttemptCount`, `syncUpdatedAt` | Estado, bloqueo por conflicto e información necesaria para reintentar la sincronización. |
 
 El lector descarta registros mal formados, limpia IDs inválidos y admite datos anteriores desde `perso-builder-local-fearless-games` cuando aún no existe la clave nueva. El límite normal es de 250 registros: registros `pending` y `failed` se conservan primero, y los registros ordinarios más antiguos son los primeros que se eliminan al recortar. Si los pendientes ocupan toda la capacidad, un nuevo guardado falla en lugar de borrar la cola.
 
 `appSettings.ts` usa `perso-builder-api-url` para la URL base. `connectionStatus.ts` usa `perso-builder-connection-status` para estado, URL, instante de comprobación y marca Local manual. La app no sincroniza estos valores entre dispositivos.
+
+`adminToken.ts` guarda el token bajo `perso-builder-admin-token`; solo se incluye en peticiones de validación y administración. `appUpdates.ts` guarda el tag del último aviso leído bajo `perso-builder-update-seen`. La respuesta de GitHub y la fecha de su última comprobación correcta se cachean únicamente en memoria.
 
 **Consecuencia operativa:** `localStorage` pertenece al perfil del WebView/navegador; no es `draftlab.db`. Limpiar los datos de la aplicación/perfil puede borrar historial y preferencias aunque SQLite siga conteniendo el catálogo.
 
@@ -152,29 +167,32 @@ El estado de conexión es una decisión de aplicación, no solo un indicador de 
 1. En Local, Fearless no consulta la serie ni sincroniza partidas. La lista de campeones usados procede del historial local. Puede haber una petición de health check al iniciar la app, al guardar una URL o al solicitar Online; comprobar salud no envía partidas.
 2. Al entrar en Online, el health check comprueba `/api/health`; en la app nativa la respuesta debe tener HTTP exitoso y el cuerpo debe indicar `status: "ok"` y `api: "online"`.
 3. Al volver a foco/visibilidad, se puede actualizar el estado si la comprobación anterior tiene más de 10 minutos. Una selección manual de Local se respeta durante estas comprobaciones automáticas; pulsar Online o guardar una URL en Ajustes ejecuta una comprobación explícita y puede cambiar el estado.
-4. En Online, Draft combina IDs usados en los registros locales con los IDs leídos de la API.
+4. En Online, Draft prepara cada partida con `GET /api/fearless`, usando `availableChampions` y conservando `seriesId` y `nextGameNumber`.
 5. Al guardar un Fearless, la escritura local ocurre antes de la petición remota.
 6. Cuando el estado pasa a Online, `App.tsx` inicia el reintento de las partidas pendientes.
 
-El modo web tiene comprobación de health mediante `fetch`, por lo que el servidor necesita permitir CORS. El cliente nativo usa `reqwest`, tiene timeout de cinco segundos y desactiva las redirecciones. Los resultados de lectura remota de Fearless se cachean durante 30 segundos para evitar consultas repetidas.
+El modo web tiene comprobación de health mediante `fetch`, por lo que el servidor necesita permitir CORS. El cliente nativo usa `reqwest`, tiene timeout de cinco segundos y desactiva las redirecciones. El historial por ID se cachea durante 30 segundos. La preparación con GET /api/fearless siempre hace una lectura nueva.
 
 ## 8. Contrato de sincronización Fearless
 
-La serie predeterminada del cliente es `fearless-001`. Los datos remotos se leen y escriben por HTTP; el repositorio no contiene el backend de esa API.
+El servidor decide la serie activa. `GET /api/fearless` devuelve su identidad, pool disponible y siguiente número; Draft conserva esos datos para confirmar esa misma partida. La serie local inicial y los registros antiguos sin ID utilizan `fearless-001`. El historial admite IDs exactos y las rutas administrativas por ID se conservan.
 
 | Método | Ruta | Uso del cliente |
 | --- | --- | --- |
-| `GET` | `/api/health` | Probar si la API está disponible. |
-| `POST` | `/api/series` | Asegurar que exista la serie; una respuesta de “ya existe” se acepta. |
-| `GET` | `/api/series/{seriesId}/used-champions` | Obtener IDs de campeones usados. Si la serie falta, el cliente la crea y repite la lectura. |
-| `GET` | `/api/series/{seriesId}` | Obtener juegos y su número, composición, fecha y ganador opcional. |
-| `POST` | `/api/series/{seriesId}/games` | Enviar `gameNumber`, `blueTeam`, `redTeam` e `idempotencyKey`. |
+| `GET` | `/api/health` | Comprobar disponibilidad. |
+| `GET` | `/api/fearless` | Preparar cada partida con el estado activo del servidor. |
+| `POST` | `/api/fearless` | Enviar `seriesId`, `gameNumber`, `blueTeam` y `redTeam`, sin token. |
+| `GET` | `/api/series/{seriesId}` | Consultar historial y reconciliar respuestas perdidas. |
+| `GET` | `/api/series/{seriesId}/used-champions` | Verificar el pool tras borrados administrativos. |
+| `GET` | `/api/admin/validate` | Validar el Admin Token configurado. |
+| `PUT` | `/api/series/{seriesId}/games/{gameNumber}/winner` | Cambiar el ganador con Admin Token. |
+| `DELETE` | `/api/series/{seriesId}/games/{gameNumber}` | Borrar una partida con Admin Token y comprobar historial/pool. |
 
-La integración administrativa se describe en [el contrato con FearlessSync](fearlesssync-admin-api.md).
+Antes de enviar se validan cinco IDs positivos por equipo, sin duplicados, en orden TOP, JG, MID, ADC, SUP. La escritura local conserva el número recibido al preparar, antes de hacer el POST. El cliente no crea series ni llama a /prepare.
 
-Antes de enviar, el cliente comprueba que haya cinco IDs enteros positivos por equipo y que no existan campeones repetidos en la partida. La API asigna/valida el número remoto; el cliente guarda localmente el número antes de enviar para reutilizarlo en un reintento. `idempotencyKey` usa el ID del registro local para que el servidor pueda reconocer una repetición.
+La cola comparte los envíos simultáneos de un mismo registro y se detiene ante un fallo. Antes de reintentar consulta el historial para reconocer un guardado cuya respuesta se perdió. Un `409 fearless_series_changed` bloquea el registro antiguo y provoca una nueva consulta, sin reasignarlo. Un `503 catalog_unavailable` muestra error y permite reintentar. Solo un guardado confirmado o reconciliado pasa a `synced`; el resto conserva `failed`.
 
-La cola se procesa en orden dentro de cada serie. Si una partida falla, el cliente para esa serie en ese intento; no envía las siguientes con numeración posiblemente incorrecta. Otras series pueden continuar. Los estados de sincronización son `pending`, `synced` y `failed`.
+El servidor archiva y abre otra serie cuando quedan menos de 10 campeones. La siguiente preparación siempre hace GET. Detalles en [el contrato con FearlessSync](fearlesssync-admin-api.md).
 
 ### Validación de URL y rutas
 
@@ -187,9 +205,11 @@ La URL base debe ser HTTPS, sin nombre de usuario/contraseña, query o fragmento
 | `get_champions` | Ninguna. | Lee y serializa todos los campeones SQLite. |
 | `generate_teams` | `mode`, `teamCount`, `excludedChampionIds`. | Valida y genera 1 o 2 equipos con el catálogo local. |
 | `check_api_health` | `apiUrl`. | Contacta `/api/health` y devuelve estado HTTP, resultado y diagnóstico. |
-| `fearless_api_request` | `apiUrl`, `method`, `path`, `body`. | Hace una llamada HTTP restringida y devuelve estado y cuerpo. |
+| `fearless_api_request` | `apiUrl`, `method`, `path`, `body`, `authToken` opcional. | Hace una llamada HTTP restringida y devuelve estado y cuerpo. |
 
 Tauri convierte los argumentos `snake_case` del backend a los nombres camelCase usados por `invoke`. Para añadir un comando, define su validación/errores en Rust y regístralo en el `invoke_handler` de `lib.rs`; encapsula la llamada desde un servicio frontend en lugar de invocar desde múltiples páginas.
+
+El complemento `tauri-plugin-opener` se registra aparte de estos comandos. La capacidad `opener:allow-open-url` permite únicamente URLs de APK bajo `https://github.com/Ivimanhm/PersoBuilder/releases/download/`. La política CSP autoriza `https://api.github.com` para la comprobación de releases; no modifica la URL Fearless configurada.
 
 ## 10. Errores y límites de confianza
 
@@ -199,6 +219,7 @@ Tauri convierte los argumentos `snake_case` del backend a los nombres camelCase 
 - Una falla HTTP no deshace el guardado local de un draft. Una falla al escribir el historial local sí impide confirmar el guardado.
 - El ID de campeón se almacena en el historial, no una copia completa del objeto; al mostrar el historial, se resuelve contra el catálogo actual. Si un ID ya no está en el catálogo, no se muestra su tarjeta de campeón.
 - El modo web tiene restricciones de origen del navegador y no dispone de los controles de red nativos de Tauri.
+- La consulta de actualizaciones tiene un timeout de 10 segundos. Los errores HTTP, respuestas inválidas o límites de GitHub no se interpretan como ausencia de actualizaciones.
 
 ## 11. Añadir o modificar una función
 
@@ -209,9 +230,19 @@ Tauri convierte los argumentos `snake_case` del backend a los nombres camelCase 
 5. Actualiza la [Guía de usuario](guia-de-usuario.md) para cambios visibles y este documento para cambios en límites, datos, comandos o flujos.
 6. Actualiza la guía de recursos si cambia el dataset y el README si cambian comandos generales de desarrollo/build.
 
-## 12. Documentos relacionados
+## 12. Actualizaciones Android
+
+`appUpdates.ts` consulta `GET https://api.github.com/repos/Ivimanhm/PersoBuilder/releases?per_page=100` sin token. Usa `getVersion()` en Tauri y la versión de `tauri.conf.json` en la previsualización web. Selecciona la mayor versión estable superior a la instalada, comparando los componentes numéricamente. Solo admite assets cargados con el nombre `Perso-Builder-<versión>.apk` y enlaces HTTPS del repositorio; el script Android genera ese APK universal.
+
+La comprobación se solicita al montar la campana, al abrir el panel y al volver a primer plano. Las peticiones concurrentes comparten una promesa y los resultados correctos se reutilizan durante 15 minutos. Cuando no hay actualización, el botón de comprobación fuerza una nueva consulta; los errores permiten reintentar. Esta consulta funciona independientemente del modo Fearless.
+
+El aviso muestra únicamente icono, nombre con la versión y descarga. Abrirlo guarda el tag leído y quita el punto, sin eliminar el aviso. La descarga abre el navegador; la instalación y los permisos corresponden a Android. El cliente no marca una actualización como instalada por haber descargado el archivo. La app nativa de escritorio no ofrece APKs; el navegador permite previsualizar el flujo.
+
+## 13. Documentos relacionados
 
 - [README del proyecto](../README.md): requisitos, desarrollo, compilación y Android.
 - [Guía de usuario](guia-de-usuario.md): pasos y resultados que ve quien usa la app.
 - [Recursos del backend](../src/backend/resources/README.md): origen y actualización del catálogo.
 - [Iconos de posiciones](../src/frontend/public/icons/roles/README.md): correspondencia y procedencia de los iconos.
+- [Integración con FearlessSync](fearlesssync-admin-api.md): endpoints, errores y administración.
+- [Actualizaciones de Android](android-updates.md): publicación y verificación de APKs.
