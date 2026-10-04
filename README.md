@@ -2,6 +2,8 @@
 
 **Última actualización:** 4 de octubre de 2026.
 
+**Versión de la aplicación:** `1.0.2`.
+
 PersoBuilder ayuda a crear equipos de League of Legends, simular drafts Fearless y elegir campeones con una ruleta. Incluye el catálogo local, así que las funciones principales no necesitan conexión. El modo Online añade la consulta y sincronización de partidas Fearless con una API configurable.
 
 ## Funciones de la aplicación
@@ -120,8 +122,8 @@ La configuración común `tauri.conf.json` fija el producto y el binario como `P
 
 - Desarrollo: `src/backend/target/debug/Perso-Builder.exe`
 - Build: `src/backend/target/release/Perso-Builder.exe` (ejecutable de la app, no instalador)
-- Instalador MSI: `src/backend/target/release/bundle/msi/Perso-Builder-1.0.1.msi`
-- Instalador NSIS: `src/backend/target/release/bundle/nsis/Perso-Builder-1.0.1-setup.exe`
+- Instalador MSI: `src/backend/target/release/bundle/msi/Perso-Builder-1.0.2.msi`
+- Instalador NSIS: `src/backend/target/release/bundle/nsis/Perso-Builder-1.0.2-setup.exe`
 
 Los dos nombres de instalador usan la versión declarada en Tauri y Cargo. El script estandariza automáticamente los nombres que genera Tauri, incluyendo la arquitectura en el nombre original.
 

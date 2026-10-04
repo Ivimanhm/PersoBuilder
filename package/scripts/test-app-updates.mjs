@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const require = createRequire(resolve(root, "src/frontend/package.json"));
 const ts = require("typescript");
+const appVersion = JSON.parse(readFileSync(resolve(root, "src/backend/tauri.conf.json"), "utf8")).version;
 const release = (version, overrides = {}) => ({
   tag_name: `v${version}`, draft: false, prerelease: false, body: "Cambios",
   assets: [{ name: `Perso-Builder-${version}.apk`, state: "uploaded",
@@ -15,7 +16,7 @@ const release = (version, overrides = {}) => ({
   ...overrides,
 });
 
-function harness({ native = false, installed = "1.0.1", respond = () => ({ status: 200, body: [] }) } = {}) {
+function harness({ native = false, installed = appVersion, respond = () => ({ status: 200, body: [] }) } = {}) {
   const storage = new Map(), requests = [], opened = [];
   const module = { exports: {} };
   const js = ts.transpileModule(readFileSync(resolve(root, "src/frontend/src/services/appUpdates.ts"), "utf8"), {
@@ -47,13 +48,13 @@ function harness({ native = false, installed = "1.0.1", respond = () => ({ statu
 test("compares version numbers numerically, including optional v prefix", () => {
   const { api } = harness();
   assert.equal(api.compareVersions("v1.10.0", "1.9.9"), 1);
-  assert.equal(api.compareVersions("1.0.1", "v1.0.1"), 0);
-  assert.throws(() => api.compareVersions("1.2.0-beta", "1.0.1"));
+  assert.equal(api.compareVersions(appVersion, `v${appVersion}`), 0);
+  assert.throws(() => api.compareVersions("1.2.0-beta", appVersion));
 });
 
 test("selects newest stable universal APK regardless of release ordering", () => {
   const { api } = harness();
-  const result = api.selectAndroidUpdate([release("1.2.0"), release("1.10.0"), release("1.3.0")], "1.0.1");
+  const result = api.selectAndroidUpdate([release("1.2.0"), release("1.10.0"), release("1.3.0")], appVersion);
   assert.equal(result.version, "1.10.0");
 });
 
@@ -62,12 +63,12 @@ test("ignores drafts, previews, missing APKs and architecture-specific APKs", ()
   const invalid = [release("2.0.0", { draft: true }), release("3.0.0", { prerelease: true }),
     release("4.0.0", { assets: [] }), release("5.0.0", { assets: [{ name: "android-arm64.apk" }] }),
     release("6.0.0-beta"), release("7.0.0", { assets: [{ name: "Perso-Builder-7.0.0.aab" }] })];
-  assert.equal(api.selectAndroidUpdate(invalid, "1.0.1"), null);
+  assert.equal(api.selectAndroidUpdate(invalid, appVersion), null);
 });
 
 test("does not offer the installed version or downgrades", () => {
   const { api } = harness();
-  assert.equal(api.selectAndroidUpdate([release("1.0.1"), release("1.0.0")], "1.0.1"), null);
+  assert.equal(api.selectAndroidUpdate([release(appVersion), release("1.0.0")], appVersion), null);
 });
 
 test("rejects links outside this repository and malformed API responses", () => {
@@ -76,7 +77,7 @@ test("rejects links outside this repository and malformed API responses", () => 
     "https://github.com@evil.test/Ivimanhm/PersoBuilder/releases/download/v2/app.apk", "javascript:alert(1)"]) {
     assert.equal(api.isReleaseDownload(url), false);
   }
-  assert.throws(() => api.selectAndroidUpdate({ message: "error" }, "1.0.1"));
+  assert.throws(() => api.selectAndroidUpdate({ message: "error" }, appVersion));
 });
 
 test("reading an update persists its tag and does not hide a later update", () => {

@@ -32,7 +32,7 @@ pub fn run() {
                 .timeout(std::time::Duration::from_secs(5))
                 .redirect(reqwest::redirect::Policy::none())
                 .cookie_store(true)
-                .user_agent("PersoBuilder/1.0")
+                .user_agent(concat!("PersoBuilder/", env!("CARGO_PKG_VERSION")))
                 .build()
                 .map_err(std::io::Error::other)?;
             app.manage(Database(std::sync::Mutex::new(connection)));

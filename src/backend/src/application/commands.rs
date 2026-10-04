@@ -174,7 +174,9 @@ async fn fearless_api_request_with_client(
     auth_token: Option<String>,
     client: reqwest::Client,
 ) -> ApiRequestResult {
-    if !path.starts_with("/api/") || !matches!(method.as_str(), "GET" | "POST" | "PATCH" | "PUT" | "DELETE") {
+    if !path.starts_with("/api/")
+        || !matches!(method.as_str(), "GET" | "POST" | "PATCH" | "PUT" | "DELETE")
+    {
         return ApiRequestResult {
             ok: false,
             status: None,
@@ -198,11 +200,25 @@ async fn fearless_api_request_with_client(
     };
     let mut request = if method == "POST" || method == "PATCH" || method == "PUT" {
         client
-            .request(match method.as_str() { "PATCH" => reqwest::Method::PATCH, "PUT" => reqwest::Method::PUT, _ => reqwest::Method::POST }, endpoint)
+            .request(
+                match method.as_str() {
+                    "PATCH" => reqwest::Method::PATCH,
+                    "PUT" => reqwest::Method::PUT,
+                    _ => reqwest::Method::POST,
+                },
+                endpoint,
+            )
             .header(reqwest::header::CONTENT_TYPE, "application/json")
             .json(&body.unwrap_or(serde_json::Value::Null))
     } else {
-        client.request(if method == "DELETE" { reqwest::Method::DELETE } else { reqwest::Method::GET }, endpoint)
+        client.request(
+            if method == "DELETE" {
+                reqwest::Method::DELETE
+            } else {
+                reqwest::Method::GET
+            },
+            endpoint,
+        )
     };
     request = request.header(reqwest::header::ACCEPT, "application/json");
     if let Some(token) = auth_token.filter(|value| !value.is_empty()) {
