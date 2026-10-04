@@ -1,6 +1,6 @@
 [package]
 name = "perso-builder"
-version = "1.0.2"
+version = "1.0.3"
 description = "Perso Builder: generador de equipos y gestor Fearless para League of Legends"
 authors = ["Perso Builder"]
 edition = "2021"
