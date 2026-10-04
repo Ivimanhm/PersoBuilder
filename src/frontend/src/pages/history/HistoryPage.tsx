@@ -1,6 +1,7 @@
 import type { Champion } from "../../types";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { HistoryRoster } from "../../components/HistoryRoster/HistoryRoster";
+import { HistoryDialog } from "./HistoryDialog";
 import { UiIcon } from "../../components/UiIcon/UiIcon";
 import {
   deleteLocalHistoryRecords,
@@ -12,8 +13,11 @@ import {
   defaultFearlessSeriesId,
   deleteFearlessGame,
   getFearlessSeriesGames,
+  getFearlessSeriesSummaries,
+  getFearlessState,
   updateFearlessGameWinner,
   validateFearlessAdminToken,
+  type FearlessSeriesSummary,
 } from "../../services/fearlessSync";
 import { getAdminTokenStatus, subscribeToAdminTokenStatus } from "../../services/adminTokenStatus";
 import {
@@ -94,25 +98,75 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
   const [localError, setLocalError] = useState("");
   const [adminValid, setAdminValid] = useState(getAdminTokenStatus() === "valid");
   const [mutating, setMutating] = useState(false);
-  const winnerDialogRef = useRef<HTMLDialogElement>(null);
-  const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const [seriesPickerOpen, setSeriesPickerOpen] = useState(false);
+  const [remoteSeries, setRemoteSeries] = useState<FearlessSeriesSummary[]>([]);
+  const [loadingSeries, setLoadingSeries] = useState(false);
+  const [seriesError, setSeriesError] = useState("");
+  const [seriesReload, setSeriesReload] = useState(0);
+  const seriesSelectedRef = useRef(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClickRef = useRef(false);
 
   useEffect(() => {
-    const dialog = winnerDialogRef.current;
-    if (winnerRecord && dialog && !dialog.open) {
-      dialog.showModal();
-      dialog.focus({ preventScroll: true });
-    }
-  }, [winnerRecord]);
+    if (connectionStatus !== "online" || seriesSelectedRef.current) return;
+    let active = true;
+    getFearlessState().then((state) => {
+      if (active && !seriesSelectedRef.current) setSeriesId(state.seriesId);
+    }).catch(() => { /* History can still load the last series known locally. */ });
+    return () => { active = false; };
+  }, [connectionStatus]);
+
   useEffect(() => {
-    const dialog = deleteDialogRef.current;
-    if (deleteRecordIds && dialog && !dialog.open) {
-      dialog.showModal();
-      dialog.focus({ preventScroll: true });
+    if (!seriesPickerOpen || connectionStatus !== "online") {
+      setLoadingSeries(false);
+      return;
     }
-  }, [deleteRecordIds]);
+    let active = true;
+    setLoadingSeries(true);
+    setSeriesError("");
+    getFearlessSeriesSummaries().then((series) => {
+      if (active) setRemoteSeries(series);
+    }).catch((error) => {
+      if (active) setSeriesError(error instanceof Error ? error.message : "No se pudieron cargar las series.");
+    }).finally(() => { if (active) setLoadingSeries(false); });
+    return () => { active = false; };
+  }, [seriesPickerOpen, connectionStatus, seriesReload]);
+
+  const seriesChoices = useMemo(() => {
+    const choices = new Map<string, number>();
+    for (const record of localRecords) {
+      if (record.kind !== "fearless") continue;
+      const id = record.seriesId ?? defaultFearlessSeriesId;
+      choices.set(id, (choices.get(id) ?? 0) + 1);
+    }
+    if (connectionStatus === "online") {
+      for (const series of remoteSeries) choices.set(series.seriesId, Math.max(series.gamesCount, choices.get(series.seriesId) ?? 0));
+    }
+    if (!choices.has(seriesId)) choices.set(seriesId, 0);
+    const recentSeriesOrder = new Map(connectionStatus === "online"
+      ? remoteSeries.map(({ seriesId: id }, index) => [id, index])
+      : []);
+    return [...choices].sort(([left], [right]) => {
+      const leftOrder = recentSeriesOrder.get(left);
+      const rightOrder = recentSeriesOrder.get(right);
+      if (leftOrder !== undefined && rightOrder !== undefined) return leftOrder - rightOrder;
+      if (leftOrder !== undefined) return -1;
+      if (rightOrder !== undefined) return 1;
+      return right.localeCompare(left, "es", { numeric: true });
+    });
+  }, [localRecords, remoteSeries, connectionStatus, seriesId]);
+
+  const chooseSeries = (id: string) => {
+    seriesSelectedRef.current = true;
+    setSeriesId(id);
+    if (id !== seriesId) setOnlineRecords([]);
+    if (id === seriesId && onlineError) setOnlineReload((value) => value + 1);
+    setOnlineError("");
+    setOpenMenuId(null);
+    setSelectedRecordIds(new Set());
+    setSelectionMode(false);
+    setSeriesPickerOpen(false);
+  };
 
   useEffect(() => () => {
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
@@ -311,23 +365,35 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
   const waitingForOnline = loadingOnline && showsOnlineFearless;
 
   return <section className="app-page history-page">
-    <label>Serie del historial <input value={seriesId} disabled={mutating} list="history-series"
-      onChange={(event) => {
-        const id = event.currentTarget.value.trim();
-        if (id) setSeriesId(id);
-        setOnlineRecords([]);
-        setOnlineError("");
-        setOpenMenuId(null);
-        setSelectedRecordIds(new Set());
-        setSelectionMode(false);
-      }} /></label>
-    <datalist id="history-series">{[...new Set(localRecords.flatMap((record) => record.seriesId ? [record.seriesId] : []))]
-      .map((id) => <option key={id} value={id} />)}</datalist>
     <div className="history-filters" role="tablist" aria-label="Tipo de partida">
       <button className={kindFilter === "all" ? "active" : ""} type="button" onClick={() => setKindFilter("all")}>Todos</button>
-      <button className={kindFilter === "fearless" ? "active" : ""} type="button" onClick={() => setKindFilter("fearless")}>Fearless</button>
+      <button className={kindFilter === "fearless" ? "active" : ""} type="button" disabled={mutating}
+        aria-haspopup="dialog" aria-expanded={seriesPickerOpen} aria-controls="history-series-picker"
+        title={`Serie seleccionada: ${seriesId}`} onClick={() => {
+          setKindFilter("fearless");
+          setSeriesPickerOpen(true);
+        }}>Fearless <i className="bi bi-chevron-down" aria-hidden="true" /></button>
       <button className={kindFilter === "teams" ? "active" : ""} type="button" onClick={() => setKindFilter("teams")}>Equipos aleatorios</button>
     </div>
+    {seriesPickerOpen && <HistoryDialog id="history-series-title" title="Series Fearless"
+      icon="bi bi-collection" onClose={() => setSeriesPickerOpen(false)}>
+        {seriesError && connectionStatus === "online" && <p role="alert">{seriesError}</p>}
+        <ul className="history-series-choices" aria-busy={loadingSeries}>
+          {seriesChoices.map(([id, count]) => <li key={id}>
+            <button type="button" aria-pressed={id === seriesId} onClick={() => chooseSeries(id)}>
+              <span>{/^fearless-\d+$/.test(id) ? `Serie ${Number(id.slice(9))}` : id}</span>
+              <small>{count} partida{count === 1 ? "" : "s"}</small>
+              {id === seriesId && <i className="bi bi-check-lg" aria-hidden="true" />}
+            </button>
+          </li>)}
+        </ul>
+        {loadingSeries && <span className="history-series-loading" role="status" aria-label="Cargando series">
+          <i className="bi bi-arrow-repeat" aria-hidden="true" />
+        </span>}
+        {seriesError && connectionStatus === "online" && <button className="history-dialog-cancel" type="button"
+          disabled={loadingSeries} onClick={() => setSeriesReload((value) => value + 1)}>Reintentar</button>}
+        <button className="history-dialog-cancel" type="button" onClick={() => setSeriesPickerOpen(false)}>Cerrar</button>
+    </HistoryDialog>}
     <div className="history-tools">
       <label className="history-search"><i className="bi bi-search" aria-hidden="true" /><span className="visually-hidden">Buscar en el historial</span><input value={search} onInput={(event) => setSearch(event.currentTarget.value)} placeholder="Buscar por campeón, fecha..." /></label>
       <select aria-label="Origen del historial" value={effectiveSourceFilter} disabled={connectionStatus !== "online"} onChange={(event) => setSourceFilter(event.currentTarget.value as HistorySourceFilter)}><option value="all">Todos</option><option value="local">Local</option><option value="online">Online</option></select>
@@ -385,7 +451,23 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
         {!results.length && <div className="history-empty">No hay partidas que coincidan con la búsqueda</div>}
       </>)}
     </div>
-    {winnerRecord && <dialog ref={winnerDialogRef} tabIndex={-1} className="history-dialog-backdrop" aria-labelledby="winner-dialog-title" onClose={() => setWinnerRecord(null)}><section className="history-dialog"><i className="bi bi-trophy-fill" /><h2 id="winner-dialog-title">Selecciona el ganador</h2><p>¿Qué equipo ganó esta partida?</p><div><button className="blue" type="button" disabled={mutating} onClick={() => void setWinner("blue")}>Equipo Azul</button><button className="red" type="button" disabled={mutating} onClick={() => void setWinner("red")}>Equipo Rojo</button></div><button className="history-dialog-cancel" type="button" disabled={mutating} onClick={() => setWinnerRecord(null)}>Cancelar</button></section></dialog>}
-    {deleteRecordIds && <dialog ref={deleteDialogRef} tabIndex={-1} className="history-dialog-backdrop" aria-labelledby="delete-dialog-title" onClose={() => setDeleteRecordIds(null)}><section className="history-dialog"><i className="bi bi-trash3" /><h2 id="delete-dialog-title">¿Eliminar {deleteRecordIds.length === 1 ? "partida" : "partidas"}?</h2><p>Esta acción no se puede deshacer.</p><div><button className="history-dialog-cancel" type="button" disabled={mutating} onClick={() => setDeleteRecordIds(null)}>Cancelar</button><button className="history-delete-confirm" type="button" disabled={mutating} onClick={() => void deleteSelectedRecords()}>{mutating ? "Eliminando..." : "Eliminar"}</button></div></section></dialog>}
+    {winnerRecord && <HistoryDialog id="winner-dialog-title" icon="bi bi-trophy-fill"
+      title="Selecciona el ganador" onClose={() => setWinnerRecord(null)}>
+      <p>¿Qué equipo ganó esta partida?</p>
+      <div className="history-dialog-actions">
+        <button className="blue" type="button" disabled={mutating} onClick={() => void setWinner("blue")}>Equipo Azul</button>
+        <button className="red" type="button" disabled={mutating} onClick={() => void setWinner("red")}>Equipo Rojo</button>
+      </div>
+      <button className="history-dialog-cancel" type="button" disabled={mutating} onClick={() => setWinnerRecord(null)}>Cancelar</button>
+    </HistoryDialog>}
+    {deleteRecordIds && <HistoryDialog id="delete-dialog-title" icon="bi bi-trash3"
+      title={`¿Eliminar ${deleteRecordIds.length === 1 ? "partida" : "partidas"}?`}
+      onClose={() => setDeleteRecordIds(null)}>
+      <p>Esta acción no se puede deshacer.</p>
+      <div className="history-dialog-actions">
+        <button className="history-dialog-cancel" type="button" disabled={mutating} onClick={() => setDeleteRecordIds(null)}>Cancelar</button>
+        <button className="history-delete-confirm" type="button" disabled={mutating} onClick={() => void deleteSelectedRecords()}>{mutating ? "Eliminando..." : "Eliminar"}</button>
+      </div>
+    </HistoryDialog>}
   </section>;
 }

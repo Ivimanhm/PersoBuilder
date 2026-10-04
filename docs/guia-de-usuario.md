@@ -51,7 +51,7 @@ Un campeón seleccionado deja de aparecer entre las opciones del draft actual. E
 
 En Online, la app conserva internamente la serie y el número de partida devueltos por Fearless; no muestra el ID técnico encima de la tabla. El servidor cambia de serie cuando quedan menos de 10 campeones disponibles. La app vuelve a consultar el estado antes de cada partida y no exige elegir ni crear manualmente una serie.
 
-El historial permite introducir el ID exacto de una serie anterior y sugiere los IDs guardados en el dispositivo. Las partidas de Equipos aleatorios no dependen de la serie.
+En el historial, pulsa **Fearless** para abrir el selector de series. En Online aparecen las series recientes de la API y las conocidas por el dispositivo; en Local se usan las series guardadas en el dispositivo. Elige una para consultar sus partidas, sin introducir el ID manualmente. Las partidas de Equipos aleatorios no dependen de la serie.
 
 Si otra instancia cambia la serie, se muestra el conflicto y la partida queda guardada localmente sin enviarse a la nueva serie. Si falla el catálogo o la sincronización, puedes reintentar. Los reintentos conservan la identidad original.
 
@@ -82,6 +82,7 @@ Abre la tarjeta **Historial** desde Inicio. El historial reúne partidas de **Dr
 ### Buscar y filtrar
 
 - Usa **Todos**, **Fearless** o **Equipos aleatorios** para filtrar por tipo.
+- El botón **Fearless** permite elegir la serie en un diálogo. Al entrar en Online se consulta la serie activa; si eliges una anterior, se conserva esa selección mientras permanezcas en el historial.
 - Busca por nombre de campeón o fecha en el campo de búsqueda.
 - En Online, el selector de origen permite elegir **Todos**, **Local** u **Online**. En modo Local solo se muestran registros locales.
 - **Todos** combina el historial del dispositivo con el remoto y omite duplicados que puede identificar por número de partida o composición.

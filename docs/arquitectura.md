@@ -175,12 +175,13 @@ El modo web tiene comprobación de health mediante `fetch`, por lo que el servid
 
 ## 8. Contrato de sincronización Fearless
 
-El servidor decide la serie activa. `GET /api/fearless` devuelve su identidad, pool disponible y siguiente número; Draft conserva esos datos para confirmar esa misma partida. La serie local inicial y los registros antiguos sin ID utilizan `fearless-001`. El historial admite IDs exactos y las rutas administrativas por ID se conservan.
+El servidor decide la serie activa. `GET /api/fearless` devuelve su identidad, pool disponible y siguiente número; Draft conserva esos datos para confirmar esa misma partida. La serie local inicial y los registros antiguos sin ID utilizan `fearless-001`. El historial oculta el campo de ID y utiliza el botón Fearless para abrir un selector con las series recientes de la API y las conocidas localmente. Las rutas administrativas por ID se conservan.
 
 | Método | Ruta | Uso del cliente |
 | --- | --- | --- |
 | `GET` | `/api/health` | Comprobar disponibilidad. |
 | `GET` | `/api/fearless` | Preparar cada partida con el estado activo del servidor. |
+| `GET` | `/api/series` | Cargar las series recientes para el selector del historial. |
 | `POST` | `/api/fearless` | Enviar `seriesId`, `gameNumber`, `blueTeam` y `redTeam`, sin token. |
 | `GET` | `/api/series/{seriesId}` | Consultar historial y reconciliar respuestas perdidas. |
 | `GET` | `/api/series/{seriesId}/used-champions` | Verificar el pool tras borrados administrativos. |

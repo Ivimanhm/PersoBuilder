@@ -193,6 +193,34 @@ test("Estado inválido, equipos inválidos y partidas antiguas sin preparación 
   assert.equal(h.calls.filter((call) => call.method === "POST").length, 0);
 });
 
+test("Listado de series para el historial funciona en web y Tauri", async () => {
+  for (const native of [false, true]) {
+    const h = harness(({ method, path }) => {
+      assert.equal(method, "GET");
+      assert.equal(path, "/api/series");
+      return { payload: { success: true, series: [
+        { seriesId: "fearless-002", gamesCount: 2 }, { seriesId: "fearless-001", gamesCount: 17 },
+      ] } };
+    }, native);
+    assert.deepEqual(await h.api.getFearlessSeriesSummaries(), [
+      { seriesId: "fearless-002", gamesCount: 2 }, { seriesId: "fearless-001", gamesCount: 17 },
+    ]);
+  }
+});
+
+test("Errores y listados de series inválidos no se interpretan como series vacías", async () => {
+  for (const response of [
+    { status: 503, payload: { error: "unavailable" } },
+    { payload: { series: null } },
+    { payload: { series: [{ seriesId: "fearless-001", gamesCount: -1 }] } },
+  ]) {
+    const h = harness(() => response);
+    await assert.rejects(h.api.getFearlessSeriesSummaries());
+  }
+  const h = harness(() => ({ payload: { success: true, series: [] } }));
+  assert.deepEqual(await h.api.getFearlessSeriesSummaries(), []);
+});
+
 test("POST con respuesta inválida no marca synced; 404 de historial no crea series", async () => {
   const h = harness(({ method, path }) => {
     if (path === "/api/fearless" && method === "GET") return { payload: state() };
