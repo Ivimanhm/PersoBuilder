@@ -73,6 +73,8 @@ function combineWithoutDuplicates(
 }
 
 export function HistoryPage({ champions }: { champions: Champion[] }) {
+  const [seriesId, setSeriesId] = useState(() =>
+    getLocalHistory().slice().reverse().find((record) => record.kind === "fearless")?.seriesId ?? defaultFearlessSeriesId);
   const [sourceFilter, setSourceFilter] = useState<HistorySourceFilter>("all");
   const [kindFilter, setKindFilter] = useState<HistoryKindFilter>("all");
   const [search, setSearch] = useState("");
@@ -134,9 +136,10 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
       return;
     }
     let active = true;
+    setOnlineRecords([]);
     setLoadingOnline(true);
     setOnlineError("");
-    getFearlessSeriesGames(defaultFearlessSeriesId, {
+    getFearlessSeriesGames(seriesId, {
       force: onlineReload > 0,
     })
       .then((games) => {
@@ -167,7 +170,7 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
     return () => {
       active = false;
     };
-  }, [connectionStatus, onlineReload]);
+  }, [connectionStatus, onlineReload, seriesId]);
 
   const championsById = useMemo(
     () => new Map(champions.map((champion) => [champion.id, champion])),
@@ -193,7 +196,8 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
         const championNames = [...record.blueTeam, ...record.redTeam]
           .map((id) => championsById.get(id)?.name ?? "")
           .join(" ");
-        return (kindFilter === "all" || record.kind === kindFilter) &&
+        return (record.kind !== "fearless" || (record.seriesId ?? defaultFearlessSeriesId) === seriesId) &&
+          (kindFilter === "all" || record.kind === kindFilter) &&
           `${formatDate(record.createdAt)} ${record.kind} ${record.source} ${championNames}`
             .toLocaleLowerCase("es")
             .includes(normalizedSearch);
@@ -201,7 +205,7 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
       .sort((left, right) =>
         new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
       );
-  }, [championsById, effectiveSourceFilter, kindFilter, localRecords, onlineError, onlineRecords, search]);
+  }, [championsById, effectiveSourceFilter, kindFilter, localRecords, onlineError, onlineRecords, search, seriesId]);
 
   const setWinner = async (side: "blue" | "red") => {
     if (!winnerRecord || mutating) return;
@@ -307,6 +311,18 @@ export function HistoryPage({ champions }: { champions: Champion[] }) {
   const waitingForOnline = loadingOnline && showsOnlineFearless;
 
   return <section className="app-page history-page">
+    <label>Serie del historial <input value={seriesId} disabled={mutating} list="history-series"
+      onChange={(event) => {
+        const id = event.currentTarget.value.trim();
+        if (id) setSeriesId(id);
+        setOnlineRecords([]);
+        setOnlineError("");
+        setOpenMenuId(null);
+        setSelectedRecordIds(new Set());
+        setSelectionMode(false);
+      }} /></label>
+    <datalist id="history-series">{[...new Set(localRecords.flatMap((record) => record.seriesId ? [record.seriesId] : []))]
+      .map((id) => <option key={id} value={id} />)}</datalist>
     <div className="history-filters" role="tablist" aria-label="Tipo de partida">
       <button className={kindFilter === "all" ? "active" : ""} type="button" onClick={() => setKindFilter("all")}>Todos</button>
       <button className={kindFilter === "fearless" ? "active" : ""} type="button" onClick={() => setKindFilter("fearless")}>Fearless</button>

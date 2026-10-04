@@ -2,6 +2,8 @@ node_modules/
 dist/
 target/
 src/backend/gen/
+# Copias de trabajo y capturas temporales de Sites
+/.sites-work/
 # Logs y archivos locales de Vite/desarrollo
 *.log
 npm-debug.log*

@@ -7,6 +7,8 @@ on:
       - "src/frontend/**"
       - "package/scripts/update-champions.mjs"
       - "package/scripts/verify-datasets.mjs"
+      - "package/scripts/test-fearless-sync.mjs"
+      - "package/scripts/test-app-updates.mjs"
       - ".github/workflows/backend.yml"
   pull_request:
     paths:
@@ -14,6 +16,8 @@ on:
       - "src/frontend/**"
       - "package/scripts/update-champions.mjs"
       - "package/scripts/verify-datasets.mjs"
+      - "package/scripts/test-fearless-sync.mjs"
+      - "package/scripts/test-app-updates.mjs"
       - ".github/workflows/backend.yml"
 
 jobs:

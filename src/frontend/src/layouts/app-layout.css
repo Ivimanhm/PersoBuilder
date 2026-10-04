@@ -1,6 +1,7 @@
 /* Persistent application frame. Only the central main element can scroll. */
 .app-shell[data-layout="app"] {
   --app-header-height: 72px;
+  --header-mode-icon-gap: 18px;
   --app-page-bar-height: 72px;
   --app-navigation-height: 64px;
   --app-content-inline-size: calc(100% - 32px);
@@ -136,9 +137,10 @@
 .app-shell[data-layout="app"] > .app-header .local-status {
   position: static;
   inset: auto;
-  margin-left: auto;
+  margin-left: 0;
   margin-right: 0;
   transform: none;
+  padding-left: var(--header-mode-icon-gap);
 }
 
 .app-header .local-status {
@@ -163,6 +165,179 @@
   outline: 2px solid #ffe47c;
   outline-offset: 4px;
 }
+
+.header-notifications {
+  flex: 0 0 auto;
+  margin-left: auto;
+  margin-right: max(0px, calc(var(--header-mode-icon-gap) - 10px));
+}
+
+.notification-bell {
+  position: relative;
+  width: min(44px, calc(24px + 2 * var(--header-mode-icon-gap)));
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: var(--gold);
+  font-size: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notification-bell > .ui-icon {
+  font-size: inherit;
+}
+
+.notification-unread-dot {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #07121b;
+  border-radius: 50%;
+  background: #ef6576;
+  pointer-events: none;
+}
+
+.notification-bell:focus-visible {
+  outline: 2px solid #ffe47c;
+  outline-offset: -4px;
+}
+
+.notification-panel {
+  touch-action: pan-y;
+  user-select: none;
+  cursor: grab;
+  transition: transform 0.18s ease-out, opacity 0.18s ease-out;
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 8px);
+  right: max(12px, env(safe-area-inset-right));
+  width: min(320px, calc(100vw - 24px));
+  padding: 18px;
+  max-height: calc(100svh - var(--app-header-height) - 24px);
+  overflow-y: auto;
+  border: 1px solid #273744;
+  border-radius: 10px;
+  color: #eef3fa;
+  background: #0b1821;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42);
+}
+
+.notification-panel[data-dragging="true"] {
+  cursor: grabbing;
+  transition: none;
+}
+
+.notification-panel[data-closing="true"] {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-panel {
+    transition-duration: 0.01ms;
+  }
+}
+
+.notification-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.notification-panel h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.notification-close {
+  position: relative;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: #98a9bf;
+  background: transparent;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.notification-close::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}
+
+.notification-close:hover { color: var(--gold); }
+
+.notification-panel p {
+  margin: 0;
+  color: #98a9bf;
+  font-size: 14px;
+}
+
+.notification-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid #273744;
+}
+
+.notification-item-icon {
+  flex: 0 0 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--gold);
+  background: rgba(220, 179, 75, 0.1);
+}
+
+.notification-item h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.notification-item p {
+  line-height: 1.45;
+}
+
+.notification-item > div { min-width: 0; }
+
+.notification-action {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px solid #655326;
+  border-radius: 6px;
+  color: var(--gold);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.notification-action:disabled { opacity: 0.6; cursor: wait; }
+
+.notification-check { width: 100%; }
 
 .connection-mode-spinner {
   color: var(--gold);
@@ -233,12 +408,19 @@
     min-width: 0;
   }
 
+  .app-shell[data-layout="app"] {
+    --header-mode-icon-gap: 8px;
+  }
+
+  .notification-bell {
+    font-size: 18px;
+  }
+
   .app-shell[data-layout="app"] > .app-header .local-status {
     width: 76px;
     min-width: 76px;
     flex: 0 0 76px;
     margin-right: 10px;
-    padding-left: 8px;
     gap: 5px;
   }
 
@@ -248,7 +430,12 @@
 }
 
 @media (max-width: 460px) {
+  .notification-bell {
+    font-size: 16px;
+  }
+
   .app-shell[data-layout="app"] {
+    --header-mode-icon-gap: 7px;
     --app-header-height: 56px;
     --app-page-bar-height: 62px;
     --app-navigation-height: 54px;
@@ -289,7 +476,6 @@
     min-width: 72px;
     flex-basis: 72px;
     margin-right: 10px;
-    padding-left: 7px;
     gap: 4px;
   }
 }

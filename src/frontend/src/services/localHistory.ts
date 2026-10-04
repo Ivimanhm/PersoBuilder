@@ -1,3 +1,5 @@
+import { defaultFearlessSeriesId } from "./fearlessSeries";
+
 export type LocalHistoryKind = "fearless" | "teams";
 export type LocalHistoryWinner = "blue" | "red";
 export type LocalHistoryMode = "local" | "online";
@@ -15,6 +17,7 @@ export type LocalHistoryRecord = {
   connectionMode?: LocalHistoryMode;
   remoteGameNumber?: number;
   syncStatus?: SyncStatus;
+  syncBlocked?: boolean;
   syncError?: string;
   syncAttemptCount?: number;
   syncUpdatedAt?: string;
@@ -68,6 +71,7 @@ function normalizeRecord(value: unknown): LocalHistoryRecord | null {
     seriesId: typeof record.seriesId === "string" ? record.seriesId : undefined,
     gameNumber: isChampionId(record.gameNumber) ? record.gameNumber : undefined,
     connectionMode, remoteGameNumber, syncStatus,
+    syncBlocked: record.syncBlocked === true,
     syncError: typeof record.syncError === "string" ? record.syncError : undefined,
     syncAttemptCount: typeof record.syncAttemptCount === "number" && record.syncAttemptCount >= 0
       ? record.syncAttemptCount : undefined,
@@ -127,26 +131,28 @@ export function getLocalHistory() { return readHistory(); }
 
 export function getPendingFearlessSyncRecords() {
   return readHistory().filter((record) =>
-    record.kind === "fearless" && record.connectionMode === "online" && record.syncStatus !== "synced",
+    record.kind === "fearless" && record.connectionMode === "online" && record.syncStatus !== "synced" && !record.syncBlocked,
   );
 }
 
-export function saveLocalHistoryRecord({ kind, blueTeam, redTeam, seriesId, connectionMode, minimumGameNumber = 1 }: {
+export function saveLocalHistoryRecord({ kind, blueTeam, redTeam, seriesId, connectionMode, minimumGameNumber = 1, preparedGameNumber }: {
   kind: LocalHistoryKind;
   blueTeam: number[];
   redTeam: number[];
   seriesId?: string;
   connectionMode?: LocalHistoryMode;
   minimumGameNumber?: number;
+  preparedGameNumber?: number;
 }): LocalHistoryRecord {
   const records = readHistory();
   const gameNumber = kind === "fearless"
-    ? Math.max(minimumGameNumber - 1, ...records.filter((record) => record.kind === "fearless" && record.seriesId === seriesId)
+    ? Math.max(minimumGameNumber - 1, ...records.filter((record) => record.kind === "fearless" && (record.seriesId ?? defaultFearlessSeriesId) === (seriesId ?? defaultFearlessSeriesId))
       .map((record) => Math.max(record.gameNumber ?? 0, record.remoteGameNumber ?? 0))) + 1
     : undefined;
   const record: LocalHistoryRecord = {
     id: crypto.randomUUID(), kind, createdAt: new Date().toISOString(),
     blueTeam: [...blueTeam], redTeam: [...redTeam], seriesId, gameNumber, connectionMode,
+    remoteGameNumber: preparedGameNumber,
     syncStatus: kind === "fearless" && connectionMode === "online" ? "pending" : undefined,
     syncAttemptCount: kind === "fearless" && connectionMode === "online" ? 0 : undefined,
   };
@@ -155,13 +161,13 @@ export function saveLocalHistoryRecord({ kind, blueTeam, redTeam, seriesId, conn
 }
 
 export function getLocalUsedFearlessChampionIds(seriesId: string, includeSynced = true) {
-  return [...new Set(readHistory().filter((record) => record.kind === "fearless" && (record.seriesId === seriesId || record.seriesId === undefined) && (includeSynced || record.syncStatus !== "synced"))
+  return [...new Set(readHistory().filter((record) => record.kind === "fearless" && (record.seriesId ?? defaultFearlessSeriesId) === seriesId && (includeSynced || record.syncStatus !== "synced"))
     .flatMap((record) => [...record.blueTeam, ...record.redTeam]))];
 }
 
 export function updateLocalHistoryRecord(
   id: string,
-  changes: Partial<Pick<LocalHistoryRecord, "winner" | "gameNumber" | "remoteGameNumber" | "syncStatus" | "syncError" | "syncAttemptCount" | "syncUpdatedAt">>,
+  changes: Partial<Pick<LocalHistoryRecord, "winner" | "gameNumber" | "remoteGameNumber" | "syncStatus" | "syncBlocked" | "syncError" | "syncAttemptCount" | "syncUpdatedAt">>,
 ) {
   writeHistory(readHistory().map((record) => record.id === id ? { ...record, ...changes } : record));
 }

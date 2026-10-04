@@ -15,6 +15,7 @@ type DraftCompletionDialogProps = {
   onClose: () => void;
   onContinueEditing: () => void;
   onSave: () => void;
+  onRetrySync?: () => void;
 };
 
 export function DraftCompletionDialog({
@@ -28,6 +29,7 @@ export function DraftCompletionDialog({
   onClose,
   onContinueEditing,
   onSave,
+  onRetrySync,
 }: DraftCompletionDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -47,7 +49,7 @@ export function DraftCompletionDialog({
         <p>Revisa la selección antes de guardarla en el historial</p>
         {!savedGameNumber && <div className="draft-completion-summary"><div><strong>Equipo Azul</strong><span>{roster(blueSlots)}</span></div><div><strong>Equipo Rojo</strong><span>{roster(redSlots)}</span></div></div>}
         {savedGameNumber
-          ? <DraftSaveResult outcome={saveOutcome} diagnostic={diagnostic} onClose={onClose} />
+          ? <><DraftSaveResult outcome={saveOutcome} diagnostic={diagnostic} onClose={onClose} />{saveError && <p role="alert" className="draft-sync-feedback error">{saveError}</p>}{onRetrySync && <button className="gold-button" type="button" disabled={saving} onClick={onRetrySync}>{saving ? "Reintentando..." : "Reintentar sincronización"}</button>}</>
           : <DraftSaveActions saving={saving} error={saveError} onContinueEditing={onContinueEditing} onSave={onSave} />}
       </section>
     </dialog>

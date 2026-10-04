@@ -1,5 +1,7 @@
 # PersoBuilder
 
+**Última actualización:** 4 de octubre de 2026.
+
 PersoBuilder ayuda a crear equipos de League of Legends, simular drafts Fearless y elegir campeones con una ruleta. Incluye el catálogo local, así que las funciones principales no necesitan conexión. El modo Online añade la consulta y sincronización de partidas Fearless con una API configurable.
 
 ## Funciones de la aplicación
@@ -8,7 +10,8 @@ PersoBuilder ayuda a crear equipos de League of Legends, simular drafts Fearless
 - Seleccionar manualmente cinco campeones para el Equipo Azul y cinco para el Equipo Rojo en un draft Fearless.
 - Excluir del draft campeones elegidos antes en la serie Fearless conocida por el dispositivo y, en Online, por la API.
 - Girar una ruleta filtrada por TOP, Jungla, MID, ADC o Support.
-- Consultar y filtrar el historial, registrar el equipo ganador en partidas locales y borrar entradas locales.
+- Consultar y filtrar el historial, registrar ganadores y borrar partidas; las operaciones sobre partidas Fearless remotas requieren un Admin Token válido.
+- Detectar actualizaciones de Android en GitHub Releases y abrir la descarga del APK desde la campana de notificaciones.
 
 La barra inferior contiene **Inicio**, **Equipos**, **Draft**, **Ruleta** y **Ajustes**. El **Historial** se abre desde Inicio. Para instrucciones paso a paso, consulta la [Guía de usuario](docs/guia-de-usuario.md).
 
@@ -16,7 +19,15 @@ La barra inferior contiene **Inicio**, **Equipos**, **Draft**, **Ruleta** y **Aj
 
 El control **MODO** de la cabecera cambia entre ambos modos. Local usa el catálogo distribuido y no consulta la serie Fearless ni sincroniza partidas. Online consulta el servicio Fearless para leer campeones usados e historial y sincronizar partidas nuevas. La app puede hacer una comprobación de salud al iniciar o al guardar una URL para conocer el estado de conexión; esto no envía una partida.
 
-El guardado de un draft escribe primero en el dispositivo. Si Online no está disponible, la partida se conserva localmente y queda pendiente para un reintento posterior. La generación de equipos siempre se añade solo al historial local. No se necesita una cuenta.
+El guardado de un draft escribe primero en el dispositivo. Si falla una sincronización Online, la partida se conserva localmente y queda pendiente para un reintento posterior. Los drafts creados en Local y la generación de equipos se guardan únicamente en el historial local. No se necesita una cuenta.
+
+En Online, cada partida se prepara con `GET /api/fearless` y se confirma con `POST /api/fearless`, conservando el ID de serie y el número recibidos. La app no crea series ni calcula el ID siguiente. Un conflicto de serie bloquea el reenvío automático de esa partida a otra serie. El contrato completo está en [Integración con FearlessSync](docs/fearlesssync-admin-api.md).
+
+### Actualizaciones de Android
+
+La campana consulta las releases públicas de `Ivimanhm/PersoBuilder`, independientemente del modo Local/Online de Fearless. Si encuentra una versión estable superior con APK universal, muestra un punto de aviso. El panel presenta el icono, el nombre con la versión y **Descargar APK**; se puede cerrar con la **X**, con la campana, pulsando fuera o arrastrándolo a un lado.
+
+La descarga abre el navegador de Android. El usuario descarga el APK y confirma la actualización en el sistema. La app nativa de escritorio no ofrece estos APKs. Consulta [Actualizaciones de Android](docs/android-updates.md) para preparar y publicar una release.
 
 ## Datos locales
 
@@ -129,6 +140,12 @@ El script sincroniza la plantilla y los iconos Android, valida que ADB vea un di
 
 Para compilar un release firmado se usa `android-release.ps1`. Prepara `signing.properties` a partir de `signing.properties.example` y coloca el keystore esperado junto al script. La configuración, el certificado y las contraseñas de firma son secretos: mantenlos fuera del repositorio y de los artefactos compartidos.
 
+```powershell
+.\package\scripts\android\android-release.ps1
+```
+
+El script genera el APK universal `Perso-Builder-<versión>.apk` y el AAB en `src/backend/gen/android/app/build/outputs`. Para distribución mediante GitHub Releases se adjunta el APK firmado. Mantén el identificador y el keystore de distribución y aumenta la versión antes de publicar una actualización.
+
 ## Actualizar el catálogo de campeones
 
 Desde la raíz del repositorio:
@@ -155,7 +172,7 @@ cargo clippy --manifest-path .\src\backend\Cargo.toml --all-targets -- -D warnin
 cargo test --manifest-path .\src\backend\Cargo.toml
 ```
 
-Build frontend y validación de datasets:
+Build frontend y pruebas de catálogo, Fearless y actualizaciones:
 
 ```powershell
 cd .\src\frontend
@@ -163,7 +180,7 @@ npm.cmd run build
 npm.cmd test
 ```
 
-`npm.cmd test` ejecuta `package/scripts/verify-datasets.mjs`. El workflow de backend está definido en `.github/workflows/backend.yml`.
+`npm.cmd test` valida el catálogo y ejecuta las pruebas de sincronización Fearless y actualizaciones Android. Las llamadas remotas se simulan: estas pruebas no envían partidas ni publican releases. El workflow `.github/workflows/backend.yml` comprueba tanto frontend como backend.
 
 ## Estructura principal
 
@@ -171,12 +188,14 @@ npm.cmd test
 | --- | --- |
 | `src/frontend/src/app` | Composición de la app, navegación y hooks de aplicación. |
 | `src/frontend/src/pages` | Bienvenida, inicio, equipos, draft, ruleta, historial y ajustes. |
-| `src/frontend/src/services` | Catálogo/generador, almacenamiento local, conexión y API Fearless. |
+| `src/frontend/src/services` | Catálogo/generador, almacenamiento local, conexión, API Fearless y actualizaciones Android. |
 | `src/frontend/public` | Catálogo e imágenes usados por el modo web. |
 | `src/backend/src` | Comandos Tauri, modelos, persistencia SQLite y lógica Rust. |
 | `src/backend/resources` | Catálogo y metadatos importados en la app nativa. |
 | `src/backend/migrations` | Migraciones versionadas de SQLite. |
-| `package/scripts` | Actualización del catálogo y automatización Android/Windows. |
+| `package/scripts` | Actualización del catálogo, pruebas y automatización Android/Windows. |
 | `docs` | Guías de usuario, arquitectura e índice documental. |
 
 Consulta [el índice de documentación](docs/README.md) para las guías específicas y la política de mantenimiento documental.
+
+Las carpetas `node_modules`, `dist`, `target` y `src/backend/gen` son salidas locales o dependencias y están excluidas de Git. Las copias de Sites y las capturas temporales no forman parte de las fuentes de PersoBuilder. El servicio FearlessSync se mantiene en su propio proyecto.
