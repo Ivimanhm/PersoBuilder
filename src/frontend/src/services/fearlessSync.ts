@@ -43,6 +43,24 @@ type ApiResponse = {
   seriesId?: string;
   gameNumber?: number;
 };
+
+export type FearlessSeriesSummary = { seriesId: string; gamesCount: number };
+
+export async function getFearlessSeriesSummaries(): Promise<FearlessSeriesSummary[]> {
+  const path = "/api/series";
+  const result = await apiRequest("GET", path);
+  const payload = result.payload as { success?: boolean; series?: unknown; message?: string; error?: string } | null;
+  if (!result.ok || payload?.success === false) {
+    throw new FearlessSyncError(describeApiError(payload, "No se pudieron consultar las series."),
+      formatApiDiagnostic("GET", path, result));
+  }
+  if (!Array.isArray(payload?.series) || payload.series.some((item) =>
+    !item || typeof item.seriesId !== "string" || !item.seriesId ||
+    !Number.isInteger(item.gamesCount) || item.gamesCount < 0)) {
+    throw new FearlessSyncError("La API devolvió un listado de series no válido.");
+  }
+  return payload.series.map((item) => ({ seriesId: item.seriesId, gamesCount: item.gamesCount }));
+}
 type NativeApiResult = {
   ok: boolean;
   status: number | null;

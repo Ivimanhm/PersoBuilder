@@ -41,13 +41,14 @@ Los IDs y el número de partida son ilustrativos; en una petición real se usa e
 - `503 catalog_unavailable`: mostrar el fallo y ofrecer reintentar; no sustituir el estado por una lista vacía.
 - Guardar localmente antes del POST y marcar sincronizada solo tras confirmar el guardado. Las confirmaciones simultáneas comparten una petición; antes de reintentar un POST fallido se consulta el historial por serie y número para reconocer una respuesta perdida sin duplicar partidas.
 - Los registros antiguos sin identidad de preparación no reciben un número calculado desde el historial para enviarlos.
-- Las rutas por ID siguen disponibles para consultar series anteriores y administrar partidas. El historial permite introducir el identificador exacto de la serie.
+- Las rutas por ID siguen disponibles para consultar series anteriores y administrar partidas. El historial elige el ID desde el selector abierto por el botón **Fearless**, sin un campo de texto permanente.
 
 ## Consultas y disponibilidad
 
 | Método | Ruta | Uso |
 | --- | --- | --- |
 | `GET` | `/api/health` | Comprobación Local/Online; respuesta correcta con `status: "ok"` y `api: "online"`. |
+| `GET` | `/api/series` | Series recientes; devuelve `series` con `seriesId` y `gamesCount` para el selector. |
 | `GET` | `/api/series/{seriesId}` | Historial de una serie y reconciliación de respuestas de guardado perdidas. |
 | `GET` | `/api/series/{seriesId}/used-champions` | Comprobar los campeones usados después de un borrado. |
 

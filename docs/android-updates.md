@@ -9,13 +9,13 @@ la API de Fearless ni necesita un token de GitHub.
 
 1. Actualizar la versión en `src/backend/tauri.conf.json`,
    `src/backend/Cargo.toml` y `src/frontend/package.json` (y su lockfile).
-   Usar versiones estables `MAJOR.MINOR.PATCH`, por ejemplo `1.0.2`.
+   Usar versiones estables `MAJOR.MINOR.PATCH`, por ejemplo `1.0.3`.
 2. Compilar el APK universal firmado con
    `package/scripts/android/android-release.ps1`. Conservar el identificador
    `com.persobuilder.app` y el keystore de distribución. Comprobar que el
    `versionCode` generado es superior al de la versión instalada.
-3. Crear una release en GitHub con tag `1.0.2` o `v1.0.2`, escribir las novedades
-   y adjuntar `Perso-Builder-1.0.2.apk`. El nombre debe coincidir con la versión.
+3. Crear una release en GitHub con tag `1.0.3` o `v1.0.3`, escribir las novedades
+   y adjuntar `Perso-Builder-1.0.3.apk`. El nombre debe coincidir con la versión.
    El APK generado por este script es universal; no renombrar un APK específico
    de una arquitectura como si fuera universal.
 4. Publicar la release como estable, con el APK ya cargado. Se ignoran borradores,
