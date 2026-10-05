@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  checkAndroidUpdates, downloadAndroidUpdate, markUpdateRead,
-  supportsAndroidUpdates, wasUpdateRead, type UpdateCheck,
+  checkAppUpdates, openAppUpdate, getUpdatePlatform, type UpdateCheck,
 } from "../../services/appUpdates";
 
 export function NotificationBell() {
@@ -11,10 +10,13 @@ export function NotificationBell() {
   const [error, setError] = useState("");
   const [downloadError, setDownloadError] = useState("");
   const [downloading, setDownloading] = useState(false);
-  const [readTag, setReadTag] = useState<string | null>(null);
-  const supported = supportsAndroidUpdates();
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const noticeDialog = useRef<HTMLDialogElement>(null);
+  const announcedTags = useRef(new Set<string>());
+  const platform = getUpdatePlatform();
+  const supported = platform !== null;
+  const actionLabel = platform === "windows" ? "Ver nueva versión" : "Descargar actualización";
   const update = result?.update;
-  const unread = !!update && readTag !== update.tag && !wasUpdateRead(update.tag);
   const mounted = useRef(true);
   const checkingRef = useRef(false);
   const [offset, setOffset] = useState(0);
@@ -37,8 +39,15 @@ export function NotificationBell() {
     setChecking(true);
     setError("");
     try {
-      const next = await checkAndroidUpdates(force);
-      if (mounted.current) setResult(next);
+      const next = await checkAppUpdates(force);
+      if (mounted.current) {
+        setResult(next);
+        if (!next.update) setNoticeOpen(false);
+        if (next.update && !announcedTags.current.has(next.update.tag)) {
+          announcedTags.current.add(next.update.tag);
+          setNoticeOpen(true);
+        }
+      }
     } catch (failure) {
       if (mounted.current) setError(failure instanceof Error &&
         failure.name !== "AbortError" && failure.name !== "TypeError"
@@ -52,22 +61,24 @@ export function NotificationBell() {
   useEffect(() => {
     mounted.current = true;
     void loadUpdates();
-    const refresh = () => {
-      if (document.visibilityState === "visible") void loadUpdates();
-    };
-    document.addEventListener("visibilitychange", refresh);
     return () => {
       mounted.current = false;
-      document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
 
   useEffect(() => {
-    if (open && update) {
-      markUpdateRead(update.tag);
-      setReadTag(update.tag);
-    }
-  }, [open, update?.tag]);
+    const dialog = noticeDialog.current;
+    if (noticeOpen && dialog && !dialog.open) dialog.showModal();
+  }, [noticeOpen]);
+
+  const downloadUpdate = async () => {
+    if (!update || downloading) return;
+    setDownloading(true);
+    setDownloadError("");
+    try { await openAppUpdate(update); }
+    catch { if (mounted.current) setDownloadError("No se pudo abrir la descarga. Inténtalo de nuevo."); }
+    finally { if (mounted.current) setDownloading(false); }
+  };
 
   const closePanel = (blurButton = true) => {
     if (blurButton && document.activeElement === button.current) button.current?.blur();
@@ -92,7 +103,6 @@ export function NotificationBell() {
     closePanel(!shouldOpen);
     if (shouldOpen) {
       setOpen(true);
-      void loadUpdates();
     }
   };
 
@@ -124,7 +134,7 @@ export function NotificationBell() {
         ref={button}
         className="notification-bell"
         type="button"
-        aria-label={unread ? "Notificaciones: 1 sin leer" : "Notificaciones"}
+        aria-label={update ? "Notificaciones: actualización pendiente" : "Notificaciones"}
         aria-expanded={open}
         aria-controls="header-notification-panel"
         onPointerDown={(event) => {
@@ -146,7 +156,7 @@ export function NotificationBell() {
         }}
       >
         <i className="ui-icon bi bi-bell" aria-hidden="true" />
-        {unread && <span className="notification-unread-dot" aria-hidden="true" />}
+        {update && <span className="notification-unread-dot" aria-hidden="true" />}
       </button>
       <section
         id="header-notification-panel"
@@ -209,7 +219,7 @@ export function NotificationBell() {
           </button>
         </div>
         <div aria-live="polite">
-        {!supported && <p>Las actualizaciones de este panel son para Android.</p>}
+        {!supported && <p>Las actualizaciones de este panel están disponibles para Android y Windows.</p>}
         {checking && !update && <p>Buscando actualizaciones…</p>}
         {error && <p role="alert">{error}</p>}
         {!checking && !error && result && !update && <p>No hay actualizaciones disponibles.</p>}
@@ -218,16 +228,10 @@ export function NotificationBell() {
             <span className="notification-item-icon" aria-hidden="true"><i className="bi bi-download" /></span>
             <div>
               <h3>Actualización disponible · {update.version}</h3>
+              <p>Versión instalada: {result?.installedVersion}</p>
               <button className="notification-action" type="button" disabled={downloading}
-                onClick={async () => {
-                  if (downloading) return;
-                  setDownloading(true);
-                  setDownloadError("");
-                  try { await downloadAndroidUpdate(update); }
-                  catch { if (mounted.current) setDownloadError("No se pudo abrir la descarga. Inténtalo de nuevo."); }
-                  finally { if (mounted.current) setDownloading(false); }
-                }}>
-                {downloading ? "Abriendo…" : "Descargar APK"}
+                onClick={() => void downloadUpdate()}>
+                {downloading ? "Abriendo…" : actionLabel}
               </button>
               {downloadError && <p role="alert">{downloadError}</p>}
             </div>
@@ -239,6 +243,25 @@ export function NotificationBell() {
           {error ? "Reintentar" : "Comprobar actualizaciones"}
         </button>}
       </section>
+      {noticeOpen && update && <dialog ref={noticeDialog} className="update-notice"
+        aria-labelledby="update-notice-title" aria-describedby="update-notice-description"
+        onCancel={() => setNoticeOpen(false)} onClose={() => setNoticeOpen(false)}>
+        <div className="notification-panel-heading">
+          <h2 id="update-notice-title">Nueva versión disponible</h2>
+          <button className="notification-close" type="button" autoFocus aria-label="Cerrar aviso de actualización"
+            onClick={() => setNoticeOpen(false)}><i className="bi bi-x-lg" aria-hidden="true" /></button>
+        </div>
+        <p id="update-notice-description">Hay una nueva versión de PersoBuilder. Puedes actualizar ahora o seguir usando la aplicación.</p>
+        <dl className="update-notice-versions">
+          <div><dt>Versión instalada</dt><dd>{result?.installedVersion}</dd></div>
+          <div><dt>Nueva versión</dt><dd>{update.version}</dd></div>
+        </dl>
+        {downloadError && <p role="alert">{downloadError}</p>}
+        <div className="update-notice-actions">
+          <button className="notification-action" type="button" disabled={downloading}
+            onClick={() => void downloadUpdate()}>{downloading ? "Abriendo…" : actionLabel}</button>
+        </div>
+      </dialog>}
     </div>
   );
 }

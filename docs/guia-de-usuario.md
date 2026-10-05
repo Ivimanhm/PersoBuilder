@@ -119,15 +119,15 @@ La URL solo se utiliza para las funciones Fearless: comprobar disponibilidad, co
 
 Si borras los datos locales de la app o del navegador, puedes perder el historial, la URL configurada y el estado de conexión. La base SQLite del catálogo no es la copia del historial.
 
-## 8. Notificaciones y actualizaciones de Android
+## 8. Notificaciones y actualizaciones
 
-Pulsa la campana de la cabecera para abrir las notificaciones. El punto indica que hay una actualización sin leer; al abrir el aviso, desaparece el punto, pero la descarga sigue disponible hasta que instales la nueva versión.
+Al entrar en la app, si hay una versión superior disponible, aparece un aviso con la versión instalada y la nueva. Puedes cerrarlo con la **X** o Escape para seguir usando la app. Se muestra una vez por apertura. Pulsa la campana de la cabecera para volver a consultar la actualización: el punto permanece mientras siga pendiente, aunque cierres el aviso o abras la descarga.
 
-Cuando se detecta una versión superior de Android, el aviso muestra el icono, el nombre con la versión y **Descargar APK**. Al pulsarlo se abre el navegador con el archivo publicado en GitHub Releases. Descárgalo, ábrelo y confirma la actualización en Android. El sistema puede pedir permiso para instalar desde ese navegador. La app no instala la actualización automáticamente.
+En Android, **Descargar actualización** abre el navegador con el APK publicado en GitHub Releases. Descárgalo, ábrelo y confirma la actualización en Android. El sistema puede pedir permiso para instalar desde ese navegador. En Windows, **Ver nueva versión** abre la publicación en GitHub para descargar el instalador. La app no instala la actualización automáticamente ni obliga a actualizar para seguir usándola.
 
 Puedes cerrar el panel con la **X**, pulsando la campana, pulsando fuera o arrastrándolo hacia un lado. El panel acompaña el arrastre y vuelve a su posición si el gesto es corto.
 
-Si no se detecta una versión nueva, el panel muestra **No hay actualizaciones disponibles** y permite **Comprobar actualizaciones**. Si falla la consulta, muestra el error y **Reintentar**. Esta comprobación necesita Internet y es independiente del modo Local/Online de Fearless. Las versiones de prueba y las releases sin APK universal no se ofrecen. En la app nativa de escritorio no se muestran APKs de Android.
+Si no se detecta una versión nueva, no aparece ningún aviso automático. El panel muestra **No hay actualizaciones disponibles** y permite **Comprobar actualizaciones**. Si falla la consulta, muestra el error y **Reintentar**. La comprobación automática se hace solo al entrar en la app, sin consultas periódicas ni al volver a primer plano o abrir la campana. Necesita Internet y es independiente del modo Local/Online de Fearless. Su resultado se reutiliza durante 15 minutos entre aperturas para evitar consultas repetidas. Las versiones de prueba y las releases sin paquete para tu plataforma no se ofrecen.
 
 ## 9. Solución de problemas
 

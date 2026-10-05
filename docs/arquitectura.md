@@ -51,7 +51,7 @@ flowchart LR
 | `app/useChampionCatalog.ts` | Carga el catálogo y habilita reintentar su lectura. |
 | `app/useTeamGeneration.ts` | Mantiene las opciones y el resultado temporal del generador; registra cada resultado en el historial local. |
 | `layouts/AppLayout.tsx` | Presenta cabecera de modo y notificaciones, encabezado de página, área de scroll y navegación inferior. |
-| `components/NotificationBell/NotificationBell.tsx` | Avisos de actualización, marca de lectura, descarga y cierre con botón, teclado o arrastre. |
+| `components/NotificationBell/NotificationBell.tsx` | Modal de actualización, indicador persistente, descarga y cierre con botón, teclado o arrastre. |
 | `pages/` | Composición y estado local de cada pantalla. El CSS específico suele estar junto a su página. |
 | `components/` | Tablas de equipos/draft, controles, iconos, temporizador y tarjetas reutilizables. |
 | `services/` | Frontera entre las páginas y los detalles de persistencia, Tauri y HTTP. |
@@ -210,7 +210,7 @@ La URL base debe ser HTTPS, sin nombre de usuario/contraseña, query o fragmento
 
 Tauri convierte los argumentos `snake_case` del backend a los nombres camelCase usados por `invoke`. Para añadir un comando, define su validación/errores en Rust y regístralo en el `invoke_handler` de `lib.rs`; encapsula la llamada desde un servicio frontend en lugar de invocar desde múltiples páginas.
 
-El complemento `tauri-plugin-opener` se registra aparte de estos comandos. La capacidad `opener:allow-open-url` permite únicamente URLs de APK bajo `https://github.com/Ivimanhm/PersoBuilder/releases/download/`. La política CSP autoriza `https://api.github.com` para la comprobación de releases; no modifica la URL Fearless configurada.
+El complemento `tauri-plugin-opener` se registra aparte de estos comandos. La capacidad `opener:allow-open-url` permite URLs de APK bajo `https://github.com/Ivimanhm/PersoBuilder/releases/download/` y páginas de versiones bajo `https://github.com/Ivimanhm/PersoBuilder/releases/tag/`. La política CSP autoriza `https://api.github.com` para la comprobación de releases; no modifica la URL Fearless configurada.
 
 ## 10. Errores y límites de confianza
 
@@ -235,9 +235,9 @@ El complemento `tauri-plugin-opener` se registra aparte de estos comandos. La ca
 
 `appUpdates.ts` consulta `GET https://api.github.com/repos/Ivimanhm/PersoBuilder/releases?per_page=100` sin token. Usa `getVersion()` en Tauri y la versión de `tauri.conf.json` en la previsualización web. Selecciona la mayor versión estable superior a la instalada, comparando los componentes numéricamente. Solo admite assets cargados con el nombre `Perso-Builder-<versión>.apk` y enlaces HTTPS del repositorio; el script Android genera ese APK universal.
 
-La comprobación se solicita al montar la campana, al abrir el panel y al volver a primer plano. Las peticiones concurrentes comparten una promesa y los resultados correctos se reutilizan durante 15 minutos. Cuando no hay actualización, el botón de comprobación fuerza una nueva consulta; los errores permiten reintentar. Esta consulta funciona independientemente del modo Fearless.
+La comprobación automática se solicita solo al montar la campana al entrar en la app. Abrir el panel o volver a primer plano no consulta las versiones, y no hay temporizadores de comprobación periódica. Las peticiones concurrentes comparten una promesa y los resultados correctos se reutilizan durante 15 minutos, también entre aperturas mediante `perso-builder-update-check` en localStorage. Esta caducidad solo se evalúa cuando se solicita una comprobación. La caché se valida por fecha, versión instalada y plataforma, y conserva los resultados sin actualización. Cuando no hay actualización, el botón de comprobación fuerza una nueva consulta; los errores permiten reintentar. Esta consulta funciona independientemente del modo Fearless.
 
-El aviso muestra únicamente icono, nombre con la versión y descarga. Abrirlo guarda el tag leído y quita el punto, sin eliminar el aviso. La descarga abre el navegador; la instalación y los permisos corresponden a Android. El cliente no marca una actualización como instalada por haber descargado el archivo. La app nativa de escritorio no ofrece APKs; el navegador permite previsualizar el flujo.
+Al detectar una actualización se abre un diálogo nativo HTML con ambas versiones, acción de actualización y cierre para seguir usando la app. Un conjunto de tags en memoria evita repetir el modal para la misma versión durante la apertura. El punto de la campana depende de la actualización pendiente y no de su lectura. En Android la descarga abre el navegador; la instalación y los permisos corresponden al sistema. En Windows se seleccionan releases con `Perso-Builder-<versión>.msi` o `Perso-Builder-<versión>-setup.exe` cargados, y se abre la página de la release. El cliente no marca una actualización como instalada por abrir el enlace. El navegador permite previsualizar el flujo Android.
 
 ## 13. Documentos relacionados
 
