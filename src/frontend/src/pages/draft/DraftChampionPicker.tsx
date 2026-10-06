@@ -50,7 +50,16 @@ export function DraftChampionPicker({
           options={[{ value: "all", label: "Todos" }, ...roleOrder.map((role) => ({ value: role, label: roleLabels[role] }))]}
         />
       </header>
-      <div className={`draft-champions ${concealed ? "draft-picker-concealed" : ""}`} ref={championListRef}>
+      <div className={`draft-champions ${concealed ? "draft-picker-concealed" : ""}`} ref={championListRef}
+        onWheel={(event) => {
+          const list = event.currentTarget;
+          if (list.ownerDocument.documentElement.dataset.desktopApp !== "true" || event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+          const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? list.clientWidth : 1;
+          const nextLeft = Math.max(0, Math.min(list.scrollWidth - list.clientWidth, list.scrollLeft + event.deltaY * unit));
+          if (nextLeft === list.scrollLeft) return;
+          event.preventDefault();
+          list.scrollLeft = nextLeft;
+        }}>
         {champions.map((champion) => (
           <button className={selected?.id === champion.id ? "selected" : ""} type="button" onClick={() => onSelect(champion)} key={champion.id}>
             <img src={champion.image} alt="" loading="lazy" decoding="async" />
