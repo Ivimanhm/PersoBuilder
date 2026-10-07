@@ -236,6 +236,38 @@ html[data-desktop-app="true"] .welcome-copy .welcome-button {
   margin: 24px 0 0;
 }
 
+/* Both screens share the same artwork, base color and intensity on Windows. */
+html[data-desktop-platform="windows"] .app-shell[data-layout="app"],
+html[data-desktop-platform="windows"] .welcome-screen {
+  --windows-background: url("/backgrounds/desktop-mountains-clean-v5.png");
+  --windows-art-opacity: 0.8;
+  isolation: isolate;
+  background: #06111a;
+}
+
+/* Panoramic PC artwork fills every window; cover preserves its proportions. */
+html[data-desktop-platform="windows"] .app-shell[data-layout="app"]::before,
+html[data-desktop-platform="windows"] .welcome-screen::before {
+  content: none;
+  display: none;
+}
+
+html[data-desktop-platform="windows"] .app-shell[data-layout="app"]::after,
+html[data-desktop-platform="windows"] .welcome-screen::after {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--windows-background) center / cover no-repeat;
+  opacity: var(--windows-art-opacity);
+  mask-image: none;
+}
+
 html[data-desktop-app="true"] .teams-page > .config-panel {
   padding: 16px;
   grid-template-columns: minmax(140px, 0.8fr) minmax(0, 1.2fr);

@@ -53,12 +53,12 @@ test("compares version numbers numerically, including optional v prefix", () => 
   assert.throws(() => api.compareVersions("1.2.0-beta", appVersion));
 });
 
-test("detects release 1.0.3 when version 1.0.2 is installed", () => {
+test("detects release 1.0.4 when version 1.0.3 is installed", () => {
   const { api } = harness();
-  const result = api.selectAndroidUpdate([release("1.0.3")], "1.0.2");
-  assert.equal(result?.version, "1.0.3");
+  const result = api.selectAndroidUpdate([release("1.0.4")], "1.0.3");
+  assert.equal(result?.version, "1.0.4");
   assert.equal(result?.downloadUrl,
-    "https://github.com/Ivimanhm/PersoBuilder/releases/download/v1.0.3/Perso-Builder-1.0.3.apk");
+    "https://github.com/Ivimanhm/PersoBuilder/releases/download/v1.0.4/Perso-Builder-1.0.4.apk");
 });
 
 test("selects newest stable universal APK regardless of release ordering", () => {

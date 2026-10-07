@@ -1,0 +1,86 @@
+/* A compact welcome for the desktop app. The mobile welcome keeps its styles. */
+html[data-desktop-app="true"] .welcome-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  height: 100svh;
+  min-height: 0;
+  padding: 32px 24px;
+  text-align: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+html[data-desktop-platform="windows"] .welcome-screen::after { position: fixed; }
+html[data-desktop-app="true"] .welcome-hero {
+  display: grid;
+  place-items: center;
+  width: clamp(160px, 23svh, 224px);
+  aspect-ratio: 1;
+  margin: 0;
+}
+html[data-desktop-app="true"] .welcome-hero .logo-large {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 8px 24px #020b1680) drop-shadow(0 0 16px #2875e333);
+}
+html[data-desktop-app="true"] .welcome-copy { width: min(100%, 420px); margin: 0; }
+html[data-desktop-app="true"] .welcome-copy h1 {
+  margin: 0;
+  color: #faf8f3;
+  font: 400 clamp(38px, 3.2vw, 56px)/1.12 Georgia, serif;
+  letter-spacing: -.035em;
+  text-shadow: 0 3px 18px #020a14;
+}
+html[data-desktop-app="true"] .welcome-copy h1 span { color: #f0cd78; }
+html[data-desktop-app="true"] .welcome-screen .welcome-tagline {
+  margin-top: 16px;
+  color: #c1cbd6;
+  font-size: 11px;
+  letter-spacing: .28em;
+  line-height: 1.5;
+}
+html[data-desktop-app="true"] .welcome-copy .gold-divider {
+  width: 180px;
+  height: 24px;
+  margin: 16px auto 20px;
+}
+html[data-desktop-app="true"] .welcome-copy .gold-divider i {
+  width: 10px;
+  height: 10px;
+  border-width: 1px;
+  border-color: #d8ba72;
+}
+html[data-desktop-app="true"] .welcome-copy .welcome-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  width: min(100%, 260px);
+  min-height: 54px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  border: 1px solid #f1cf7a;
+  border-radius: 4px;
+  color: #101006;
+  background: linear-gradient(110deg, #f4d784, #d3a849);
+  box-shadow: inset 0 1px #fff1ba80, 0 4px 18px #00000024;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+@media (max-height: 580px) {
+  html[data-desktop-app="true"] .welcome-screen { gap: 16px; padding: 20px 24px; }
+  html[data-desktop-app="true"] .welcome-hero { width: clamp(80px, 22svh, 128px); }
+  html[data-desktop-app="true"] .welcome-copy h1 { font-size: 34px; }
+  html[data-desktop-app="true"] .welcome-screen .welcome-tagline { margin-top: 10px; font-size: 10px; }
+  html[data-desktop-app="true"] .welcome-copy .gold-divider { margin: 10px auto 12px; }
+  html[data-desktop-app="true"] .welcome-copy .welcome-button { min-height: 48px; }
+}
+@media (max-height: 380px) {
+  html[data-desktop-app="true"] .welcome-screen { justify-content: flex-start; gap: 12px; padding: 16px 24px; }
+  html[data-desktop-app="true"] .welcome-hero { width: 72px; }
+  html[data-desktop-app="true"] .welcome-copy h1 { font-size: 28px; }
+}
