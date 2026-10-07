@@ -16,8 +16,9 @@ const release = (version, overrides = {}) => ({
   ...overrides,
 });
 
-function harness({ native = false, installed = appVersion, respond = () => ({ status: 200, body: [] }) } = {}) {
-  const storage = new Map(), requests = [], opened = [];
+function harness({ native = false, installed = appVersion, storage = new Map(), userAgent = "Android",
+  now = () => Date.now(), respond = () => ({ status: 200, body: [] }) } = {}) {
+  const requests = [], opened = [];
   const module = { exports: {} };
   const js = ts.transpileModule(readFileSync(resolve(root, "src/frontend/src/services/appUpdates.ts"), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -36,11 +37,11 @@ function harness({ native = false, installed = appVersion, respond = () => ({ st
     const { status, body } = await respond();
     return { ok: status === 200, status, json: async () => body };
   };
-  new Function("require", "module", "exports", "window", "navigator", "localStorage", "fetch", js)(
+  new Function("require", "module", "exports", "window", "navigator", "localStorage", "fetch", "Date", js)(
     imports, module, module.exports,
     { setTimeout, clearTimeout, open: url => { opened.push(url); return null; } },
-    { userAgent: "Android" },
-    { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }, fetch,
+    { userAgent },
+    { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }, fetch, { now },
   );
   return { api: module.exports, requests, opened, storage };
 }
@@ -50,6 +51,14 @@ test("compares version numbers numerically, including optional v prefix", () => 
   assert.equal(api.compareVersions("v1.10.0", "1.9.9"), 1);
   assert.equal(api.compareVersions(appVersion, `v${appVersion}`), 0);
   assert.throws(() => api.compareVersions("1.2.0-beta", appVersion));
+});
+
+test("detects release 1.0.4 when version 1.0.3 is installed", () => {
+  const { api } = harness();
+  const result = api.selectAndroidUpdate([release("1.0.4")], "1.0.3");
+  assert.equal(result?.version, "1.0.4");
+  assert.equal(result?.downloadUrl,
+    "https://github.com/Ivimanhm/PersoBuilder/releases/download/v1.0.4/Perso-Builder-1.0.4.apk");
 });
 
 test("selects newest stable universal APK regardless of release ordering", () => {
@@ -80,11 +89,51 @@ test("rejects links outside this repository and malformed API responses", () => 
   assert.throws(() => api.selectAndroidUpdate({ message: "error" }, appVersion));
 });
 
-test("reading an update persists its tag and does not hide a later update", () => {
-  const { api } = harness();
-  api.markUpdateRead("v1.2.0");
-  assert.equal(api.wasUpdateRead("v1.2.0"), true);
-  assert.equal(api.wasUpdateRead("v1.3.0"), false);
+test("successful checks survive relaunch until expiry, including checks without updates", async () => {
+  for (const body of [[], [release("1.2.0")]]) {
+    const storage = new Map();
+    let time = 1000000;
+    const options = { storage, now: () => time, respond: () => ({ status: 200, body }) };
+    const first = harness(options);
+    const result = await first.api.checkAndroidUpdates();
+    const reopened = harness(options);
+    assert.deepEqual(await reopened.api.checkAndroidUpdates(), result);
+    assert.equal(reopened.requests.length, 0);
+    time += 15 * 60 * 1000;
+    await reopened.api.checkAndroidUpdates();
+    assert.equal(reopened.requests.length, 1);
+  }
+});
+
+test("persistent cache is invalidated after installation or for another platform", async () => {
+  const storage = new Map();
+  const first = harness({ storage, installed: "1.1.0", respond: () => ({ status: 200, body: [release("1.2.0")] }) });
+  await first.api.checkAndroidUpdates();
+  const upgraded = harness({ storage, installed: "1.2.0", respond: () => ({ status: 200, body: [release("1.2.0")] }) });
+  assert.equal((await upgraded.api.checkAndroidUpdates()).update, null);
+  assert.equal(upgraded.requests.length, 1);
+  const windows = harness({ storage, native: true, userAgent: "Windows NT 10.0" });
+  await windows.api.checkAppUpdates();
+  assert.equal(windows.requests.length, 1);
+});
+
+test("corrupted snapshots and future timestamps trigger a fresh check", async () => {
+  for (const value of ["bad json", JSON.stringify({ checkedAt: Date.now() + 60000,
+    platform: "android", result: { installedVersion: appVersion, update: null } }),
+    JSON.stringify({ checkedAt: Date.now(), platform: "android", result: { installedVersion: appVersion,
+      update: { version: "2.0.0", tag: "v2.0.0", downloadUrl: "https://evil.test/file.apk" } } })]) {
+    const { api, requests } = harness({ storage: new Map([["perso-builder-update-check", value]]) });
+    assert.equal((await api.checkAndroidUpdates()).update, null);
+    assert.equal(requests.length, 1);
+  }
+});
+
+test("storage failures do not prevent checking or memory caching", async () => {
+  const storage = { get: () => { throw new Error("denied"); }, set: () => { throw new Error("full"); } };
+  const { api, requests } = harness({ storage });
+  await api.checkAndroidUpdates();
+  await api.checkAndroidUpdates();
+  assert.equal(requests.length, 1);
 });
 
 test("deduplicates concurrent checks, caches successes and allows explicit refresh", async () => {
@@ -119,4 +168,19 @@ test("native check reads the installed version and opens the APK through the OS"
   await api.downloadAndroidUpdate(result.update);
   assert.equal(opened[0], result.update.downloadUrl);
   await assert.rejects(api.downloadAndroidUpdate({ downloadUrl: "https://evil.test/app.apk" }));
+});
+
+test("Windows offers its installer release page and never an Android-only release", async () => {
+  const desktopRelease = release("1.2.0", { assets: [{ name: "Perso-Builder-1.2.0-setup.exe", state: "uploaded" }] });
+  const { api, opened } = harness({ native: true, userAgent: "Windows NT 10.0", installed: "1.1.0",
+    respond: () => ({ status: 200, body: [release("2.0.0"), desktopRelease] }) });
+  assert.equal(api.getUpdatePlatform(), "windows");
+  const result = await api.checkAppUpdates();
+  assert.equal(result.update.version, "1.2.0");
+  await api.openAppUpdate(result.update);
+  assert.equal(opened[0], "https://github.com/Ivimanhm/PersoBuilder/releases/tag/v1.2.0");
+  assert.equal(api.selectWindowsUpdate([release("2.0.0")], "1.1.0"), null);
+  assert.equal(api.selectWindowsUpdate([desktopRelease], "1.2.0"), null);
+  assert.equal(api.selectWindowsUpdate([{ ...desktopRelease, prerelease: true }], "1.1.0"), null);
+  await assert.rejects(api.openAppUpdate({ tag: "v2.0.0", downloadUrl: "https://evil.test/" }));
 });

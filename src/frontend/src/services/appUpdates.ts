@@ -5,11 +5,14 @@ import appConfig from "../../../backend/tauri.conf.json";
 
 export const releasesUrl = "https://api.github.com/repos/Ivimanhm/PersoBuilder/releases?per_page=100";
 const releasePath = "/Ivimanhm/PersoBuilder/releases/";
-const seenKey = "perso-builder-update-seen";
-const checkInterval = 15 * 60 * 1000;
+const snapshotKey = "perso-builder-update-check";
+// La caducidad solo se consulta al entrar; no programa comprobaciones periódicas.
+const cacheMaxAge = 15 * 60 * 1000;
 
-export type AndroidUpdate = { version: string; tag: string; downloadUrl: string };
-export type UpdateCheck = { installedVersion: string; update: AndroidUpdate | null };
+export type AppUpdate = { version: string; tag: string; downloadUrl: string };
+export type AndroidUpdate = AppUpdate;
+export type UpdatePlatform = "android" | "windows";
+export type UpdateCheck = { installedVersion: string; update: AppUpdate | null };
 
 function parseVersion(value: string): number[] | null {
   const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\+[\w.-]+)?$/.exec(value);
@@ -37,9 +40,17 @@ export function isReleaseDownload(value: string): boolean {
 }
 
 export function selectAndroidUpdate(payload: unknown, installedVersion: string): AndroidUpdate | null {
+  return selectUpdate(payload, installedVersion, "android");
+}
+
+export function selectWindowsUpdate(payload: unknown, installedVersion: string): AppUpdate | null {
+  return selectUpdate(payload, installedVersion, "windows");
+}
+
+function selectUpdate(payload: unknown, installedVersion: string, platform: UpdatePlatform): AppUpdate | null {
   if (!Array.isArray(payload)) throw new Error("GitHub devolvió una respuesta no válida.");
   if (!parseVersion(installedVersion)) throw new Error("No se pudo leer la versión instalada.");
-  let update: AndroidUpdate | null = null;
+  let update: AppUpdate | null = null;
   for (const release of payload) {
     if (!release || release.draft !== false || release.prerelease !== false ||
         typeof release.tag_name !== "string" || !parseVersion(release.tag_name) ||
@@ -52,8 +63,12 @@ export function selectAndroidUpdate(payload: unknown, installedVersion: string):
     const apk = release.assets.find((asset: { name?: unknown; browser_download_url?: unknown; state?: unknown }) =>
       asset?.name === `Perso-Builder-${version}.apk` && asset.state === "uploaded" &&
       typeof asset.browser_download_url === "string" && isReleaseDownload(asset.browser_download_url));
-    if (apk) update = {
-      version, tag: release.tag_name, downloadUrl: apk.browser_download_url,
+    const installer = platform === "windows" && release.assets.some((asset: { name?: unknown; state?: unknown }) =>
+      asset?.state === "uploaded" && (asset.name === `Perso-Builder-${version}.msi` ||
+        asset.name === `Perso-Builder-${version}-setup.exe`));
+    if (platform === "android" ? apk : installer) update = {
+      version, tag: release.tag_name, downloadUrl: platform === "android" ? apk.browser_download_url :
+        `https://github.com${releasePath}tag/${release.tag_name}`,
     };
   }
   return update;
@@ -62,16 +77,53 @@ export function selectAndroidUpdate(payload: unknown, installedVersion: string):
 let pending: Promise<UpdateCheck> | null = null;
 let cached: UpdateCheck | null = null;
 let checkedAt = 0;
+let cachedPlatform: UpdatePlatform | null = null;
+
+function readSnapshot(installedVersion: string, platform: UpdatePlatform): UpdateCheck | null {
+  try {
+    const snapshot = JSON.parse(localStorage.getItem(snapshotKey) ?? "null");
+    const age = Date.now() - snapshot?.checkedAt;
+    if (!snapshot || typeof snapshot.checkedAt !== "number" || age < 0 || age >= cacheMaxAge ||
+        snapshot.platform !== platform || snapshot.result?.installedVersion !== installedVersion) return null;
+    const update = snapshot.result.update;
+    if (update !== null && (!update || typeof update.version !== "string" ||
+        typeof update.tag !== "string" || !parseVersion(update.tag) ||
+        compareVersions(update.version, update.tag) !== 0 ||
+        compareVersions(update.version, installedVersion) <= 0 ||
+        !(platform === "android" ? isReleaseDownload(update.downloadUrl) :
+          update.downloadUrl === `https://github.com${releasePath}tag/${update.tag}`))) return null;
+    cached = snapshot.result;
+    cachedPlatform = platform;
+    checkedAt = snapshot.checkedAt;
+    return cached;
+  } catch { return null; }
+}
 
 export function supportsAndroidUpdates() {
   return !isTauri() || /Android/i.test(navigator.userAgent);
 }
 
 export function checkAndroidUpdates(force = false): Promise<UpdateCheck> {
+  return checkAppUpdates(force, "android");
+}
+
+export function getUpdatePlatform(): UpdatePlatform | null {
+  if (supportsAndroidUpdates()) return "android";
+  return /Windows/i.test(navigator.userAgent) ? "windows" : null;
+}
+
+export function checkAppUpdates(force = false, platform = getUpdatePlatform()): Promise<UpdateCheck> {
+  if (!platform) return Promise.reject(new Error("Esta plataforma no admite actualizaciones."));
   if (pending) return pending;
-  if (!force && cached && Date.now() - checkedAt < checkInterval) return Promise.resolve(cached);
   pending = (async () => {
     const installedVersion = isTauri() ? await getVersion() : appConfig.version;
+    const age = Date.now() - checkedAt;
+    if (!force && cached?.installedVersion === installedVersion && cachedPlatform === platform &&
+        age >= 0 && age < cacheMaxAge) return cached;
+    if (!force) {
+      const snapshot = readSnapshot(installedVersion, platform);
+      if (snapshot) return snapshot;
+    }
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 10000);
     try {
@@ -81,28 +133,37 @@ export function checkAndroidUpdates(force = false): Promise<UpdateCheck> {
       if (!response.ok) throw new Error(response.status === 403 || response.status === 429
         ? "GitHub ha limitado las consultas. Inténtalo más tarde."
         : "No se pudieron consultar las actualizaciones. Inténtalo de nuevo.");
-      const result = { installedVersion, update: selectAndroidUpdate(await response.json(), installedVersion) };
+      const result = { installedVersion, update: selectUpdate(await response.json(), installedVersion, platform) };
       cached = result;
+      cachedPlatform = platform;
       checkedAt = Date.now();
+      try {
+        localStorage.setItem(snapshotKey, JSON.stringify({ result, checkedAt, platform }));
+      } catch { /* La caché en memoria funciona sin almacenamiento local. */ }
       return result;
     } finally { window.clearTimeout(timeout); }
   })().finally(() => { pending = null; });
   return pending;
 }
 
-export function wasUpdateRead(tag: string) {
-  try { return localStorage.getItem(seenKey) === tag; } catch { return false; }
-}
-
-export function markUpdateRead(tag: string) {
-  try { localStorage.setItem(seenKey, tag); } catch { /* Reading still works in memory. */ }
-}
-
 export async function downloadAndroidUpdate(update: AndroidUpdate) {
   if (!isReleaseDownload(update.downloadUrl)) throw new Error("El enlace de descarga no es válido.");
-  if (isTauri()) await openUrl(update.downloadUrl);
+  await openUpdateUrl(update.downloadUrl);
+}
+
+export async function openAppUpdate(update: AppUpdate, platform = getUpdatePlatform()) {
+  if (!(platform === "android" ? isReleaseDownload(update.downloadUrl) :
+      platform === "windows" && !!parseVersion(update.tag) &&
+      update.downloadUrl === `https://github.com${releasePath}tag/${update.tag}`)) {
+    throw new Error("El enlace de actualización no es válido.");
+  }
+  await openUpdateUrl(update.downloadUrl);
+}
+
+async function openUpdateUrl(url: string) {
+  if (isTauri()) await openUrl(url);
   else {
-    const opened = window.open(update.downloadUrl, "_blank", "noopener,noreferrer");
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
     if (opened) opened.opener = null;
   }
 }

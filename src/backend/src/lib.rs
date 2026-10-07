@@ -19,6 +19,16 @@ use commands::{Database, HttpClient};
 use rusqlite::Connection;
 use tauri::Manager;
 
+#[tauri::command]
+fn is_desktop_app() -> bool {
+    cfg!(desktop)
+}
+
+#[tauri::command]
+fn is_windows_app() -> bool {
+    cfg!(all(desktop, target_os = "windows"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if let Err(error) = tauri::Builder::default()
@@ -40,6 +50,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            is_desktop_app,
+            is_windows_app,
             commands::get_champions,
             commands::generate_teams,
             commands::check_api_health,
